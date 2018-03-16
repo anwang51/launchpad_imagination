@@ -6,8 +6,14 @@ from collections import deque
 import numpy as np
 import random
 import gym
+from math import log
 
 record = open("performance", "w")
+savefile = "./savefile.h5"
+
+# POLE-SPECIFIC
+max_time = 500
+agent = DQNAgent(4,2)
 
 # Deep Q-learning Agent
 class DQNAgent:
@@ -56,6 +62,12 @@ class DQNAgent:
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
+    def load(self, name):
+        self.model.load_weights(name)
+
+    def save(self, name):
+        self.model.save_weights(name)
+
     # Should be def train(self, agent_action)
     def train(self):
         env = gym.make('CartPole-v1')
@@ -66,9 +78,9 @@ class DQNAgent:
             state = env.reset()
             state = np.reshape(state, [1, 4])
             # time_t represents each frame of the game
-            # Our goal is to keep the pole upright as long as possible until score of 500
+            # Our goal is to keep the pole upright as long as possible until score of max_time
             # the more time_t the more score
-            for time_t in range(500):
+            for time_t in range(max_time):
                 # turn this on if you want to render
                 env.render()
                 # Decide action
@@ -76,7 +88,15 @@ class DQNAgent:
                 # Advance the game to the next frame based on the action.
                 # Reward is 1 for every frame the pole survived
                 next_state, reward, done, _ = env.step(action)
-                reward = reward if not done else -10
+                
+                # POLE-SPECIFIC
+                if time_t == max_time - 1:
+                    reward = 150
+                elif done:
+                    reward = -5
+                else:
+                    reward = log(time_t + 1) / 10 + 1
+
                 next_state = np.reshape(next_state, [1, 4])
                 # Remember the previous state, action, reward, and done
                 self.remember(state, action, reward, next_state, done)
@@ -98,5 +118,9 @@ class DQNAgent:
         for e in self.training_result:
             record.write(str(e) + " ")
 
-agent = DQNAgent(4,2)
-agent.train()
+def train_agent():
+    agent.train()
+    agent.save(savefile)
+
+def load_agent():
+    agent.load(savefile)

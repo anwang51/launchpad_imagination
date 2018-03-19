@@ -29,7 +29,7 @@ class DQNAgent:
         self.epsilon_decay = 0.995
         self.learning_rate = 0.001
         self.model = self._build_model()
-        self.episodes = 100
+        self.episodes = 2000
         self.training_result = []
 
     def _build_model(self):

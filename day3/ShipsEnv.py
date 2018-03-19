@@ -25,3 +25,4 @@ class ShipsEnv:
 		self.master = Tk()
 		self.w = Canvas(self.master, width=600, height=600)
 		self.w.pack()
+		return self.game_vec

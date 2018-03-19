@@ -1,19 +1,20 @@
 import tensorflow as tf
-from keras.models import Sequential
-from keras.layers import Dense
-from keras.optimizers import Adam
+from tensorflow import keras
+from tensorflow import layers
+from tensorflow import train
 from collections import deque
 import numpy as np
 import random
 import gym
 from math import log
+import matplotlib.pyplot as plt
 
 record = open("performance", "w")
 savefile = "./savefile.h5"
 
 # POLE-SPECIFIC
 max_time = 500
-agent = DQNAgent(4,2)
+
 
 # Deep Q-learning Agent
 class DQNAgent:
@@ -28,17 +29,17 @@ class DQNAgent:
         self.epsilon_decay = 0.995
         self.learning_rate = 0.001
         self.model = self._build_model()
-        self.episodes = 2000
+        self.episodes = 500
         self.training_result = []
 
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
-        model = Sequential()
-        model.add(Dense(24, input_dim=self.state_size, activation='relu'))
-        model.add(Dense(24, activation='relu'))
-        model.add(Dense(self.action_size, activation='linear'))
+        model = keras.Sequential()
+        model.add(keras.layers.Dense(24, input_dim=self.state_size, activation='elu'))
+        model.add(keras.layers.Dense(24, activation='elu'))
+        model.add(keras.layers.Dense(self.action_size, activation='linear'))
         model.compile(loss='mse',
-                      optimizer=Adam(lr=self.learning_rate))
+                      optimizer=keras.optimizers.Adam(lr=self.learning_rate))
         return model
 
     def remember(self, state, action, reward, next_state, done):
@@ -118,9 +119,15 @@ class DQNAgent:
         for e in self.training_result:
             record.write(str(e) + " ")
 
+agent = DQNAgent(4,2)
+
 def train_agent():
     agent.train()
     agent.save(savefile)
 
 def load_agent():
     agent.load(savefile)
+
+
+if __name__ == "__main__":
+    train_agent()

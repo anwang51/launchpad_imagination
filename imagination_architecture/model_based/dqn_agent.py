@@ -7,13 +7,14 @@ import numpy as np
 import random
 import gym
 from math import log
+import matplotlib.pyplot as plt
 
 record = open("performance", "w")
 savefile = "./savefile.h5"
 
 # POLE-SPECIFIC
 max_time = 500
-agent = DQNAgent(4,2)
+scores = []
 
 # Deep Q-learning Agent
 class DQNAgent:
@@ -28,7 +29,7 @@ class DQNAgent:
         self.epsilon_decay = 0.995
         self.learning_rate = 0.001
         self.model = self._build_model()
-        self.episodes = 2000
+        self.episodes = 100
         self.training_result = []
 
     def _build_model(self):
@@ -93,9 +94,9 @@ class DQNAgent:
                 if time_t == max_time - 1:
                     reward = 150
                 elif done:
-                    reward = -5
+                    reward = -15
                 else:
-                    reward = log(time_t + 1) / 10 + 1
+                    reward = log(time_t + 1) / 5 + 1
 
                 next_state = np.reshape(next_state, [1, 4])
                 # Remember the previous state, action, reward, and done
@@ -108,6 +109,7 @@ class DQNAgent:
                     # print the score and break out of the loop
                     print("episode: {}/{}, score: {}"
                           .format(e, self.episodes, time_t))
+                    scores.append(time_t)
                     break
             # train the agent with the experience of the episode
             self.training_result.append(time_t)
@@ -118,9 +120,17 @@ class DQNAgent:
         for e in self.training_result:
             record.write(str(e) + " ")
 
+agent = DQNAgent(4,2)
+
 def train_agent():
     agent.train()
     agent.save(savefile)
 
 def load_agent():
     agent.load(savefile)
+
+def plot_scores():
+    plt.plot(scores)
+    plt.xlabel('episode')
+    plt.ylabel('score')
+    plt.show()

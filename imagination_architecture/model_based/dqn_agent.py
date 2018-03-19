@@ -1,7 +1,7 @@
 import tensorflow as tf
-from keras.models import Sequential
-from keras.layers import Dense
-from keras.optimizers import Adam
+from tensorflow import keras
+from tensorflow import layers
+from tensorflow import train
 from collections import deque
 import numpy as np
 import random
@@ -14,7 +14,7 @@ savefile = "./savefile.h5"
 
 # POLE-SPECIFIC
 max_time = 500
-scores = []
+
 
 # Deep Q-learning Agent
 class DQNAgent:
@@ -29,17 +29,23 @@ class DQNAgent:
         self.epsilon_decay = 0.995
         self.learning_rate = 0.001
         self.model = self._build_model()
+<<<<<<< HEAD
         self.episodes = 2000
+||||||| merged common ancestors
+        self.episodes = 100
+=======
+        self.episodes = 500
+>>>>>>> d9dc85586d17406e069e1c591322d93dc031cf59
         self.training_result = []
 
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
-        model = Sequential()
-        model.add(Dense(24, input_dim=self.state_size, activation='relu'))
-        model.add(Dense(24, activation='relu'))
-        model.add(Dense(self.action_size, activation='linear'))
+        model = keras.Sequential()
+        model.add(keras.layers.Dense(24, input_dim=self.state_size, activation='elu'))
+        model.add(keras.layers.Dense(24, activation='elu'))
+        model.add(keras.layers.Dense(self.action_size, activation='linear'))
         model.compile(loss='mse',
-                      optimizer=Adam(lr=self.learning_rate))
+                      optimizer=keras.optimizers.Adam(lr=self.learning_rate))
         return model
 
     def remember(self, state, action, reward, next_state, done):
@@ -94,9 +100,9 @@ class DQNAgent:
                 if time_t == max_time - 1:
                     reward = 150
                 elif done:
-                    reward = -15
+                    reward = -5
                 else:
-                    reward = log(time_t + 1) / 5 + 1
+                    reward = log(time_t + 1) / 10 + 1
 
                 next_state = np.reshape(next_state, [1, 4])
                 # Remember the previous state, action, reward, and done
@@ -109,7 +115,6 @@ class DQNAgent:
                     # print the score and break out of the loop
                     print("episode: {}/{}, score: {}"
                           .format(e, self.episodes, time_t))
-                    scores.append(time_t)
                     break
             # train the agent with the experience of the episode
             self.training_result.append(time_t)
@@ -129,8 +134,6 @@ def train_agent():
 def load_agent():
     agent.load(savefile)
 
-def plot_scores():
-    plt.plot(scores)
-    plt.xlabel('episode')
-    plt.ylabel('score')
-    plt.show()
+
+if __name__ == "__main__":
+    train_agent()

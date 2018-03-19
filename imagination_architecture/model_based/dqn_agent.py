@@ -29,14 +29,14 @@ class DQNAgent:
         self.epsilon_decay = 0.995
         self.learning_rate = 0.001
         self.model = self._build_model()
-        self.episodes = 2000
+        self.episodes = 500
         self.training_result = []
 
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
         model = keras.Sequential()
-        model.add(keras.layers.Dense(24, input_dim=self.state_size, activation='relu'))
-        model.add(keras.layers.Dense(24, activation='relu'))
+        model.add(keras.layers.Dense(24, input_dim=self.state_size, activation='elu'))
+        model.add(keras.layers.Dense(24, activation='elu'))
         model.add(keras.layers.Dense(self.action_size, activation='linear'))
         model.compile(loss='mse',
                       optimizer=keras.optimizers.Adam(lr=self.learning_rate))
@@ -81,7 +81,6 @@ class DQNAgent:
             # time_t represents each frame of the game
             # Our goal is to keep the pole upright as long as possible until score of max_time
             # the more time_t the more score
-            scores = []
             for time_t in range(max_time):
                 # turn this on if you want to render
                 env.render()
@@ -108,7 +107,6 @@ class DQNAgent:
                 # ex) The agent drops the pole
                 if done:
                     # print the score and break out of the loop
-                    scores.append(time_t)
                     print("episode: {}/{}, score: {}"
                           .format(e, self.episodes, time_t))
                     break
@@ -126,7 +124,6 @@ agent = DQNAgent(4,2)
 def train_agent():
     agent.train()
     agent.save(savefile)
-    plt.plot(score)
 
 def load_agent():
     agent.load(savefile)

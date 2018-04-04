@@ -1,8 +1,6 @@
 from tkinter import *
 from math import sqrt, sin, cos
 import threading
-import time
-
 #Global variables
 bounds = 500
 refresh_time = 40
@@ -41,7 +39,7 @@ class ship:
 		if(vy+self.y < bounds and vy + self.y > 0):
 			self.y += vy
 		#Rotate the gun to determined position
-		self.gun_direction = input[2] % (2*3.14159)
+		self.gun_direction += 0.1*input[2]/abs(input[2])
 		#Shoot
 		if(input[3] > 0 and self.refresh_clock <= 0):
 			vx = 5*cos(self.gun_direction)
@@ -73,8 +71,10 @@ class game:
 		self.bullets_list = []
 		s = state_vec[0 : 5]
 		self.ship_0 = ship(self.bullets_list, s[0], s[1], s[2], s[3], s[4])
+		#print("ship_0 health:", self.ship_0.health)
 		s = state_vec[5 : 10]
 		self.ship_1 = ship(self.bullets_list, s[0], s[1], s[2], s[3], s[4])
+		#print("ship_1 health:", self.ship_1.health)
 		place = 10
 		while(place < 70):
 			s = state_vec[place: place + 4]
@@ -116,8 +116,10 @@ class game:
 				i += 1
 		#Get reward for ship_0
 		if(self.ship_0.health <= 0):
+			print("Game Lost")
 			return -1
 		elif(self.ship_1.health <= 0):
+			print("Game Won")
 			return 1
 		else:
 			return 0

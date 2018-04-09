@@ -24,11 +24,11 @@ class INet:
 
 	def remember(state, action, reward, next_state, done):
 
-	def act(paths, MF_output):
+	def act(paths, MF_input):
 		init_op = tf.initialize_all_variables()
 		with tf.Session() as sess:
 			sess.run(init_op)
-			return sess.run(self.output, {self._paths: paths, self._MF_input})
+			return sess.run(self.output, {self._paths: paths, self._MF_input: MF_input})
 
 	def update(paths, MF_output, action, reward, next_paths, next_MF_output):
 		better_val = reward + self.gamma*np.max(self.act(next_paths, next_MF_output))

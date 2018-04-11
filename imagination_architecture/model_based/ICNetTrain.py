@@ -70,7 +70,7 @@ class DQNAgent:
         if np.random.rand() <= self.epsilon:
             return random.randrange(self.action_size)
         act_values = self.model.action(state)
-        return np.argmax(act_values[0])  # returns action
+        return np.argmax(act_values)  # returns action
 
     def replay(self, batch_size):
         minibatch = random.sample(self.memory, batch_size)
@@ -79,10 +79,10 @@ class DQNAgent:
         rewards = []
         next_states = []
         for tup in minibatch:
-            states.append(tup[0])
+            states.append(tup[0][0])
             actions.append(tup[1])
             rewards.append(tup[2])
-            next_states.append(tup[3])
+            next_states.append(tup[3][0])
         states = np.array(states)
         actions = np.eye(self.action_size)[actions]
         rewards = np.array(rewards)

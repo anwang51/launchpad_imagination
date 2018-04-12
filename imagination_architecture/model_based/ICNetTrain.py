@@ -16,11 +16,11 @@ class ICNet:
     def __init__(self, sess, input_size, action_num):
         self.sess = sess
         self.x = tf.placeholder("float32", [None, input_size])
-        W1 = tf.Variable(tf.random_uniform([input_size, 20], 0, 1))
-        b1 = tf.Variable(tf.random_uniform([20], 0, 1))
+        W1 = tf.Variable(tf.random_normal([input_size, 20]))
+        b1 = tf.Variable(tf.random_normal([20]))
         l1 = tf.nn.relu(tf.matmul(self.x, W1)+b1)
-        W2 = tf.Variable(tf.random_uniform([20, action_num], 0, 1))
-        b2 = tf.Variable(tf.random_uniform([action_num], 0, 1))
+        W2 = tf.Variable(tf.random_normal([20, action_num]))
+        b2 = tf.Variable(tf.random_normal([action_num]))
         self.y_hat = tf.nn.relu(tf.matmul(l1, W2)+b2)
 
         #self.y = tf.placeholder("float", [None, action_num])
@@ -34,6 +34,7 @@ class ICNet:
 
     def update(self, state, action, reward, next_state):
         #print("next_state", next_state)
+        print(reward)
         reward_vecs = self.sess.run(self.y_hat, {self.x: next_state})
         #print("Reward Vec: ", reward_vecs)
         q_vals = reward + gamma*np.amax(reward_vecs, 1)
@@ -43,7 +44,7 @@ class ICNet:
 
     def action(self, state):
         reward_vec = self.sess.run(self.y_hat, {self.x: state})
-        print(reward_vec)
+        #print(reward_vec)
         return np.argmax(reward_vec)
 
 
@@ -54,11 +55,11 @@ class DQNAgent:
         self.state_size = state_size
         self.action_size = action_size
         self.memory = deque(maxlen=1500)
-        self.epsilon = 1.0  # exploration rate
+        self.epsilon = 1  # exploration rate
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
         self.model = self._build_model()
-        self.episodes = 500
+        self.episodes = 3000
         self.training_result = []
 
     def _build_model(self):
@@ -91,6 +92,8 @@ class DQNAgent:
         actions = np.eye(self.action_size)[actions]
         rewards = np.array(rewards)
         next_states = np.array(next_states)
+        #print("states", states, "actions", actions, "rewards", rewards, "next_states", next_states)
+        #print("rewards", rewards)
         self.model.update(states, actions, rewards, next_states)
 
         if self.epsilon > self.epsilon_min:
@@ -124,7 +127,8 @@ class DQNAgent:
                 # Advance the game to the next frame based on the action.
                 # Reward is 1 for every frame the pole survived
                 next_state, reward, done, _ = env.step(action)
-                
+                if(done and time_t < 500):
+                    reward = -100
                 # # POLE-SPECIFIC
                 # if time_t == max_time - 1:
                 #     reward = 150

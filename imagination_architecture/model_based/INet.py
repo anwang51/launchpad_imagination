@@ -13,7 +13,7 @@ class INet:
 		self._MF_output = tf.placeholder("float", [None, MF_input_size])
 		input_pieces.add(self._MF_output)
 		x = tf.concat(input_pieces, 1)
-		W1 = tf.Variable("float", [None, num_paths*LSTM_input_size+MF_input_size, 20])
+		W1 = tf.Variable("float", tf.random_uniform([None, num_paths*LSTM_input_size+MF_input_size, 20], -0.5, 0.5))
 		b1 = tf.Variable("float", [None, 20])
 		l1 = tf.nn.relu(tf.add(tf.matmul(x, W1), b1))
 		W2 = tf.Variable("float", [None, 20, output_size])

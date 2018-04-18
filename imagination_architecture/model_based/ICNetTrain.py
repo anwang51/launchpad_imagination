@@ -46,6 +46,7 @@ class ICNet:
     def action(self, state):
         reward_vec = self.sess.run(self.y_hat, {self.x: state})
         #print(reward_vec)
+        print(np.argmax(reward_vec))
         return np.argmax(reward_vec)
 
 
@@ -80,6 +81,7 @@ class DQNAgent:
 
     def replay(self, batch_size):
         minibatch = random.sample(self.memory, batch_size)
+        print("minibatch ", minibatch)
         states = []
         actions = []
         rewards = []

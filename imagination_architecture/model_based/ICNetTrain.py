@@ -34,9 +34,9 @@ class ICNet:
 
     def update(self, state, action, reward, next_state):
         #print("next_state", next_state)
-        print(reward)
+        # print(reward)
         reward_vecs = self.sess.run(self.y_hat, {self.x: next_state})
-        #print("Reward Vec: ", reward_vecs)
+        print("Reward Vec: ", reward_vecs)
         q_vals = reward + gamma*np.amax(reward_vecs, 1)
         #print("q_vals: ", q_vals)
 
@@ -45,6 +45,7 @@ class ICNet:
     def action(self, state):
         reward_vec = self.sess.run(self.y_hat, {self.x: state})
         #print(reward_vec)
+        print(np.argmax(reward_vec))
         return np.argmax(reward_vec)
 
 
@@ -55,8 +56,8 @@ class DQNAgent:
         self.state_size = state_size
         self.action_size = action_size
         self.memory = deque(maxlen=1500)
-        self.epsilon = 1  # exploration rate
-        self.epsilon_min = 0.01
+        self.epsilon = 0  # exploration rate
+        self.epsilon_min = 0.0
         self.epsilon_decay = 0.995
         self.model = self._build_model()
         self.episodes = 3000
@@ -79,6 +80,7 @@ class DQNAgent:
 
     def replay(self, batch_size):
         minibatch = random.sample(self.memory, batch_size)
+        print("minibatch ", minibatch)
         states = []
         actions = []
         rewards = []

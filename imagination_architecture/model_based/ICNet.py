@@ -21,6 +21,7 @@ class ICNet:
 	def update(state, action, reward, next_state):
 		reward_vecs = self.sess.run(self.y_hat, {self.x: next_state})
 		q_vals = reward + gamma*np.amax(reward_vecs, 1)
+		print(reward_vecs)
 		self.sess.run(self.train, {self.x: state, self.q_val: q_vals, self.actions: action})
 
 	def action(state):

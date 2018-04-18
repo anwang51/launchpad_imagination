@@ -16,11 +16,11 @@ class ICNet:
     def __init__(self, sess, input_size, action_num):
         self.sess = sess
         self.x = tf.placeholder("float32", [None, input_size])
-        W1 = tf.Variable(tf.random_normal([input_size, 20]))
-        b1 = tf.Variable(tf.random_normal([20]))
+        W1 = tf.Variable(tf.random_uniform([input_size, 20], 0, 1))
+        b1 = tf.Variable(tf.random_uniform([20], 0, 1))
         l1 = tf.nn.relu(tf.matmul(self.x, W1)+b1)
-        W2 = tf.Variable(tf.random_normal([20, action_num]))
-        b2 = tf.Variable(tf.random_normal([action_num]))
+        W2 = tf.Variable(tf.random_uniform([20, action_num], 0, 1))
+        b2 = tf.Variable(tf.random_uniform([action_num], 0, 1))
         self.y_hat = tf.nn.relu(tf.matmul(l1, W2)+b2)
 
         #self.y = tf.placeholder("float", [None, action_num])
@@ -34,11 +34,12 @@ class ICNet:
 
     def update(self, state, action, reward, next_state):
         #print("next_state", next_state)
-        print(reward)
+        #print("rewards", reward)
         reward_vecs = self.sess.run(self.y_hat, {self.x: next_state})
         #print("Reward Vec: ", reward_vecs)
+        #print("update terms", np.amax(reward_vecs, 1))
         q_vals = reward + gamma*np.amax(reward_vecs, 1)
-        #print("q_vals: ", q_vals)
+        print("q_vals: ", q_vals)
 
         self.sess.run(self.train, {self.x: state, self.q_val: q_vals, self.actions: action})
 
@@ -54,7 +55,7 @@ class DQNAgent:
     def __init__(self, state_size, action_size):
         self.state_size = state_size
         self.action_size = action_size
-        self.memory = deque(maxlen=1500)
+        self.memory = deque(maxlen=100)
         self.epsilon = 1  # exploration rate
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
@@ -89,7 +90,9 @@ class DQNAgent:
             rewards.append(tup[2])
             next_states.append(tup[3][0])
         states = np.array(states)
+        #print("actions_1", actions)
         actions = np.eye(self.action_size)[actions]
+        #print("actions_2", actions)
         rewards = np.array(rewards)
         next_states = np.array(next_states)
         #print("states", states, "actions", actions, "rewards", rewards, "next_states", next_states)
@@ -108,7 +111,7 @@ class DQNAgent:
     # Should be def train(self, agent_action)
     def train(self):
         env = gym.make('CartPole-v1')
-        print(env.observation_space, env.action_space)
+        print("env stuff", env.observation_space, env.action_space)
         init = tf.global_variables_initializer()
         self.model.sess.run(init)
         # Iterate the game
@@ -128,7 +131,7 @@ class DQNAgent:
                 # Reward is 1 for every frame the pole survived
                 next_state, reward, done, _ = env.step(action)
                 if(done and time_t < 500):
-                    reward = -100
+                    reward = -1000
                 # # POLE-SPECIFIC
                 # if time_t == max_time - 1:
                 #     reward = 150
@@ -136,7 +139,6 @@ class DQNAgent:
                 #     reward = -5
                 # else:
                 #     reward = log(time_t + 1) / 10 + 1
-
                 next_state = np.reshape(next_state, [1, 4])
                 # Remember the previous state, action, reward, and done
                 self.remember(state, action, reward, next_state, done)
@@ -152,8 +154,8 @@ class DQNAgent:
             # train the agent with the experience of the episode
             self.training_result.append(time_t)
             num_mem = len(self.memory)
-            if num_mem > 5:
-                num_mem = 5
+            if(num_mem > 32):
+                num_mem = 32
             agent.replay(num_mem)
         for e in self.training_result:
             record.write(str(e) + " ")

@@ -32,21 +32,23 @@ class ICNet:
         self.train = tf.train.AdamOptimizer(0.001).minimize(loss)
         self.saver = tf.train.Saver()
 
-    def update(self, state, action, reward, next_state):
+    def update(self, state, action, reward, next_state, done):
         #print("next_state", next_state)
         #print("rewards", reward)
         reward_vecs = self.sess.run(self.y_hat, {self.x: next_state})
         #print("Reward Vec: ", reward_vecs)
         #print("update terms", np.amax(reward_vecs, 1))
-        q_vals = reward + gamma*np.amax(reward_vecs, 1)
-        print("q_vals: ", q_vals)
+        q_vals = reward + gamma*np.amax(reward_vecs, 1)*(1-done)
+
+
+        #print("q_vals: ", q_vals)
 
         self.sess.run(self.train, {self.x: state, self.q_val: q_vals, self.actions: action})
 
     def action(self, state):
         reward_vec = self.sess.run(self.y_hat, {self.x: state})
         #print(reward_vec)
-        print(np.argmax(reward_vec))
+        #print(np.argmax(reward_vec))
         return np.argmax(reward_vec)
 
 
@@ -56,8 +58,8 @@ class DQNAgent:
     def __init__(self, state_size, action_size):
         self.state_size = state_size
         self.action_size = action_size
-        self.memory = deque(maxlen=100)
-        self.epsilon = 1  # exploration rate
+        self.memory = deque(maxlen=2000)
+        self.epsilon = 0.2  # exploration rate
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
         self.model = self._build_model()
@@ -81,25 +83,27 @@ class DQNAgent:
 
     def replay(self, batch_size):
         minibatch = random.sample(self.memory, batch_size)
-        print("minibatch ", minibatch)
         states = []
         actions = []
         rewards = []
         next_states = []
+        dones = []
         for tup in minibatch:
             states.append(tup[0][0])
             actions.append(tup[1])
             rewards.append(tup[2])
             next_states.append(tup[3][0])
+            dones.append(tup[4])
         states = np.array(states)
         #print("actions_1", actions)
         actions = np.eye(self.action_size)[actions]
         #print("actions_2", actions)
         rewards = np.array(rewards)
         next_states = np.array(next_states)
+        dones = np.array(dones)
         #print("states", states, "actions", actions, "rewards", rewards, "next_states", next_states)
         #print("rewards", rewards)
-        self.model.update(states, actions, rewards, next_states)
+        self.model.update(states, actions, rewards, next_states, dones)
 
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
@@ -133,7 +137,7 @@ class DQNAgent:
                 # Reward is 1 for every frame the pole survived
                 next_state, reward, done, _ = env.step(action)
                 if(done and time_t < 500):
-                    reward = -1000
+                    reward = -1
                 # # POLE-SPECIFIC
                 # if time_t == max_time - 1:
                 #     reward = 150
@@ -156,9 +160,10 @@ class DQNAgent:
             # train the agent with the experience of the episode
             self.training_result.append(time_t)
             num_mem = len(self.memory)
-            if(num_mem > 32):
-                num_mem = 32
-            agent.replay(num_mem)
+            if(num_mem > 64):
+                num_mem = 64
+            for _ in range(100):
+                agent.replay(num_mem)
         for e in self.training_result:
             record.write(str(e) + " ")
 

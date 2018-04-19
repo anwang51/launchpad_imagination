@@ -3,13 +3,13 @@ from tensorflow.contrib import rnn
 import numpy as np
 
 class INet:
-	def __init__(LSTM_input_size, num_paths, MF_input_size, output_size, sess):
+	def __init__(LSTM_input_size, num_paths, MF_input_size, output_size, path_length, sess):
 		self.sess = sess
 
 		self.input_size = input_size
-		lstm_layer=rnn.BasicLSTMCell(input_size,forget_bias=1)
+		lstm_layer = rnn.BasicLSTMCell(input_size,forget_bias=1)
 
-		self._paths = (tf.placeholder("float", [None, None, LSTM_input_size]) for _ in range(num_paths)) #Batch_size, path_length, LSTM.input_size
+		self._paths = (tf.placeholder("float", [None, path_length, LSTM_input_size]) for _ in range(num_paths)) #Batch_size, path_length, LSTM.input_size
 		input_pieces = [rnn.static_rnn(lstm_layer,tf.unstack(path, None, 1),dtype="float")[-1] for path in self._paths]
 		self._MF_output = tf.placeholder("float", [None, MF_input_size])
 		input_pieces.add(self._MF_output)
@@ -39,7 +39,7 @@ class INet:
 		reward_vec = self.sess.run(self.output, {self._paths: paths, self._MF_input: MF_input})
 		return np.argmax(reward_vec)
 
-	def update(paths, MF_output, action, reward, next_paths, next_MF_output):
+	def update(paths, MF_output, action, reward, next_paths, next_MF_output, done):
 		reward_vec = self.sess.run(self.output, {self._paths: next_paths, self._MF_input: next_MF_input})
-		better_val = reward + self.gamma*np.amax(self.act(next_paths, next_MF_output))
-		self.sess.run(self.train, {self._paths: paths, self._MF_input})
+		q_val = reward + self.gamma*np.amax(self.act(next_paths, next_MF_output))*(1-done)
+		self.sess.run(self.train, {self._paths: paths, self._MF_input, self.q_val, q_val, self.action, action})

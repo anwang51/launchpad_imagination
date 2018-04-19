@@ -5,6 +5,7 @@ import numpy as np
 class INet:
 	def __init__(LSTM_input_size, num_paths, MF_input_size, output_size, sess):
 		self.sess = sess
+
 		self.input_size = input_size
 		lstm_layer=rnn.BasicLSTMCell(input_size,forget_bias=1)
 
@@ -13,22 +14,32 @@ class INet:
 		self._MF_output = tf.placeholder("float", [None, MF_input_size])
 		input_pieces.add(self._MF_output)
 		x = tf.concat(input_pieces, 1)
-		W1 = tf.Variable("float", tf.random_uniform([None, num_paths*LSTM_input_size+MF_input_size, 20], -0.5, 0.5))
-		b1 = tf.Variable("float", [None, 20])
-		l1 = tf.nn.relu(tf.add(tf.matmul(x, W1), b1))
-		W2 = tf.Variable("float", [None, 20, output_size])
-		b2 = tf.Variable("float", [None, output_size])
-		self.output = tf.nn.relu(tf.add(tf.matmul(l1, W2), b2))
-		self._y = tf.placeholder("float", [None])
-		loss = tf.sum(tf.square(self.output - _y))
-		self.train = tf.train.AdamOptimizer().minimize(loss)
+
+        self.x = tf.placeholder("float32", [None, input_size])
+        W1 = tf.get_variable('W1', [num_paths*LSTM_input_size+MF_input_size, 40], initializer=tf.contrib.layers.xavier_initializer())
+        b1 = tf.get_variable('b1', [40], initializer=tf.contrib.layers.xavier_initializer())
+        l1 = tf.nn.relu(tf.matmul(self.x, W1)+b1)
+        W2 = tf.get_variable('W2', [40, action_num], initializer=tf.contrib.layers.xavier_initializer())
+        b2 = tf.get_variable('b2', [action_num], initializer=tf.contrib.layers.xavier_initializer())
+        self.output = tf.matmul(l1, W2)+b2
+
+
+        self.q_val = tf.placeholder("float32", [None]) #Proper q-vals as calculated by the bellman equation
+        self.actions = tf.placeholder("float32", [None, action_num]) #Actions stored as one-hot vectors
+        self.q_val_hat = tf.reduce_sum(tf.multiply(self.output, self.actions), axis=1) #The q-vals for the actions selected in game
+        #loss = tf.reduce_sum(tf.square(self.q_val - q_val_hat))
+        self.loss = tf.losses.mean_squared_error(self.q_val, self.q_val_hat)
+        self.optimizer = tf.train.AdamOptimizer(0.001)
+        self.train = self.optimizer.minimize(self.loss)
+        self.saver = tf.train.Saver()
 
 	def remember(state, action, reward, next_state, done):
 
 	def act(paths, MF_output):
-		return self.sess.run(self.output, {self._paths: paths, self._MF_input: MF_input})
+		reward_vec = self.sess.run(self.output, {self._paths: paths, self._MF_input: MF_input})
+		return np.argmax(reward_vec)
 
 	def update(paths, MF_output, action, reward, next_paths, next_MF_output):
-		output = self.act(next_paths, next_MF_output)
-		better_val = reward + self.gamma*np.max(self.act(next_paths, next_MF_output))
+		reward_vec = self.sess.run(self.output, {self._paths: next_paths, self._MF_input: next_MF_input})
+		better_val = reward + self.gamma*np.amax(self.act(next_paths, next_MF_output))
 		self.sess.run(self.train, {self._paths: paths, self._MF_input})

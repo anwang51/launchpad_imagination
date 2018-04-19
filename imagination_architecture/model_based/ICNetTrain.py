@@ -136,7 +136,7 @@ class DQNAgent:
                 # Advance the game to the next frame based on the action.
                 # Reward is 1 for every frame the pole survived
                 next_state, reward, done, _ = env.step(action)
-                if(done and time_t < 500):
+                if(done and time_t < 499):
                     reward = -1
                 # # POLE-SPECIFIC
                 # if time_t == max_time - 1:

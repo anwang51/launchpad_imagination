@@ -4,18 +4,25 @@ import gym_sokoban
 import numpy as np
 import random
 
+state_size = 49
+action_size = 8
+
+def env_loss(y, y_hat):
+
+
 class EnvModel:
-    def __init__(self, sess, input_size):
+    def __init__(self, sess, state_size, action_size):
         self.sess = sess
-        self.input_size = input_size
+        self.input_size = state_size + action_size
+        self.output_size = state_size*7 + 1
         self.x = tf.placeholder("float32", [None, input_size])
         W1 = tf.Variable(tf.random_uniform([input_size, 20], 0, 1))
         b1 = tf.Variable(tf.random_uniform([20], 0, 1))
         l1 = tf.nn.relu(tf.matmul(self.x, W1)+b1)
-        W2 = tf.Variable(tf.random_uniform([20, input_size], 0, 1))
-        b2 = tf.Variable(tf.random_uniform([input_size], 0, 1))
+        W2 = tf.Variable(tf.random_uniform([20, self.output_size], 0, 1))
+        b2 = tf.Variable(tf.random_uniform([self.output_size], 0, 1))
         self.y_hat = tf.nn.relu(tf.matmul(l1, W2)+b2)
-        self.y = tf.placeholder("float32", [None, input_size]) 
+        self.y = tf.placeholder("float32", [None, self.output_size]) 
         loss = tf.losses.mean_squared_error(self.y, self.y_hat)
         self.train = tf.train.AdamOptimizer(0.001).minimize(loss)
         self.saver = tf.train.Saver()
@@ -24,7 +31,7 @@ class EnvModel:
         # print(np.shape(prev_state))
         # print(prev_state)
         x = np.reshape(np.append(prev_state,action), (1, self.input_size))
-        y = np.reshape(np.append(next_state,reward), (1, self.input_size))
+        y = np.reshape(np.append(next_state,reward), (1, self.output_size))
         self.sess.run(self.train, {self.x: x, self.y: y})
 
     def predict(self, prev_state, action):
@@ -35,15 +42,16 @@ class EnvModel:
         return state, reward
 
 class EnvironmentNN:
-    def __init__(self, state_size):
-        self.input_size = state_size + 1
+    def __init__(self, state_size, action_size):
+        self.state_size = state_size
+        self.action_size = action_size
         self.model = self._build_model()
         self.episodes = 3000
         self.max_time = 500
 
     def _build_model(self):
         session = tf.Session()
-        return EnvModel(session, self.input_size)
+        return EnvModel(session, self.state_size, self.action_size)
 
     def load(self, name):
         self.model.saver.restore(self.model.sess, name)
@@ -86,11 +94,8 @@ class EnvironmentNN:
             while not done and t < self.max_time:
                 action = random.randint(0,7)
                 next_state, reward, done, _ = env.step(action)
-                next_state = compress(next_state)
-                # print(state)
-                # print(next_state)
-                self.model.update(state, action, next_state, reward)
-                state = next_state
+                self.model.update(state, action, np.reshape(tf.one_hot(next_state, 7), (-1,)), reward)
+                state = compress(next_state)
                 t += 1
 
             print("episode: {}/{}, score: {}"
@@ -123,7 +128,8 @@ def compress(state):
     new_state = new_state.flatten()
     return new_state
 
-nn = EnvironmentNN(49)
+
+nn = EnvironmentNN(state_size, action_size)
 
 def load_agent():
     nn.load(savefile)

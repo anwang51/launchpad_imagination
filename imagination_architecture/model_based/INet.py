@@ -6,18 +6,18 @@ class INet:
 	def __init__(self, LSTM_input_size, num_paths, MF_input_size, output_size, path_length, sess):
 		self.sess = sess
 
-		lstm_layer = rnn.BasicLSTMCell(LSTM_input_size,forget_bias=1)
+		#lstm_layer = rnn.BasicLSTMCell(LSTM_input_size,forget_bias=1)
+		lstm_layer = rnn.core_rnn_cell.BasicLSTMCell(LSTM_input_size,forget_bias=1)
 		#Batch_size, path_length, LSTM.input_size
-		self._paths = (tf.placeholder("float", [None, path_length, LSTM_input_size]) for _ in range(num_paths))
-		input_pieces = []
-		for path in self._paths:
-			unstacked = tf.unstack(path, None, 1)
-			input_pieces.append(rnn.static_rnn(lstm_layer, unstacked,dtype="float")[-1])
-
+		self._paths = tf.placeholder("float", [num_paths, path_length, LSTM_input_size])
+		unstacked = tf.unstack(self._paths, None, 1)
+		input_matrix = rnn.static_rnn(lstm_layer, unstacked, dtype="float")[-1]
+		input_pieces = tf.unstack(input_matrix, None, 0)
 		self._MF_output = tf.placeholder("float", [None, MF_input_size])
-		input_pieces.add(self._MF_output)
+		input_pieces.append(self._MF_output)
 		x = tf.concat(input_pieces, 1)
-		self.x = tf.placeholder("float32", [None, input_size])
+
+		self.x = tf.placeholder("float32", [MF_input_size])
 		W1 = tf.get_variable('W1', [num_paths*LSTM_input_size+MF_input_size, 40], initializer=tf.contrib.layers.xavier_initializer())
 		b1 = tf.get_variable('b1', [40], initializer=tf.contrib.layers.xavier_initializer())
 		l1 = tf.nn.relu(tf.matmul(self.x, W1)+b1)

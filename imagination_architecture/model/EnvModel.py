@@ -2,10 +2,12 @@ import tensorflow as tf
 import gym
 import gym_sokoban
 import numpy as np
+import random
 
 class EnvModel:
-	def __init__(self, sess, input_size):
+    def __init__(self, sess, input_size):
         self.sess = sess
+        self.input_size = input_size
         self.x = tf.placeholder("float32", [None, input_size])
         W1 = tf.Variable(tf.random_uniform([input_size, 20], 0, 1))
         b1 = tf.Variable(tf.random_uniform([20], 0, 1))
@@ -13,28 +15,31 @@ class EnvModel:
         W2 = tf.Variable(tf.random_uniform([20, input_size], 0, 1))
         b2 = tf.Variable(tf.random_uniform([input_size], 0, 1))
         self.y_hat = tf.nn.relu(tf.matmul(l1, W2)+b2)
-        self.y = tf.placeholder("float32", [None]) 
+        self.y = tf.placeholder("float32", [None, input_size]) 
         loss = tf.losses.mean_squared_error(self.y, self.y_hat)
         self.train = tf.train.AdamOptimizer(0.001).minimize(loss)
         self.saver = tf.train.Saver()
 
     def update(self, prev_state, action, next_state, reward):
-    	x = prev_state.append(action)
-    	y = next_state.append(reward)
+        # print(np.shape(prev_state))
+        # print(prev_state)
+        x = np.reshape(np.append(prev_state,action), (1, self.input_size))
+        y = np.reshape(np.append(next_state,reward), (1, self.input_size))
         self.sess.run(self.train, {self.x: x, self.y: y})
 
     def predict(self, prev_state, action):
-    	x = prev_state.append(action)
+        x = prev_state.append(action)
         reward_vec = self.sess.run(self.y_hat, {self.x: x})
         state = reward_vec[:len(reward_vec) - 1]
         reward = reward_vec[len(reward_vec):]
         return state, reward
 
 class EnvironmentNN:
-	def __init__(self, state_size):
-        self.input_size = input_size + 1
+    def __init__(self, state_size):
+        self.input_size = state_size + 1
         self.model = self._build_model()
         self.episodes = 3000
+        self.max_time = 500
 
     def _build_model(self):
         session = tf.Session()
@@ -48,8 +53,17 @@ class EnvironmentNN:
 
     # Should be def train(self, agent_action)
     def train(self):
-        env = gym.make('TinyWorld-Sokoban-small-v0')
-        print("env stuff", env.observation_space, env.action_space)
+        while True:
+            try:
+                env = gym.make('TinyWorld-Sokoban-small-v0')
+            except RuntimeWarning:
+                print("RuntimeWarning caught: retrying")
+                continue
+            except RuntimeError:
+                print("RuntimeError caught: retrying")
+                continue
+            else:
+                break
         init = tf.global_variables_initializer()
         self.model.sess.run(init)
 
@@ -68,14 +82,18 @@ class EnvironmentNN:
                     break
 
             done = False
-            while not done:
+            t = 0
+            while not done and t < self.max_time:
                 action = random.randint(0,7)
-                next_state, reward, done = env.step(action)
+                next_state, reward, done, _ = env.step(action)
                 next_state = compress(next_state)
+                # print(state)
+                # print(next_state)
                 self.model.update(state, action, next_state, reward)
                 state = next_state
+                t += 1
 
-        print("episode: {}/{}, score: {}"
+            print("episode: {}/{}, score: {}"
                           .format(e, self.episodes, reward))
         agent.model.save_model("tfmodel_weights.h5")
 
@@ -102,7 +120,7 @@ def compress(state):
                 temp.append(6)   
         new_state.append(temp) 
     new_state = np.array(new_state)
-    new_state.flatten()
+    new_state = new_state.flatten()
     return new_state
 
 nn = EnvironmentNN(49)

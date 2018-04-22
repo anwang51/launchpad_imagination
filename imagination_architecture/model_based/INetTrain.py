@@ -103,7 +103,7 @@ class DQNAgent:
                 num_mem = 32
             agent.replay(num_mem)
         agent.model.save_model("tfmodel_weights.h5")
-        
+
 
 agent = DQNAgent(37632,8)
 
@@ -113,6 +113,28 @@ def train_agent():
 
 def load_agent():
     agent.load(savefile)
+
+def generate_rollouts(policy_net, env_model, state, action_size):
+    '''
+    policy_net:
+        Input: state
+        Output: action
+
+    env_model:
+        Input: state, action
+        Output: next state, reward, etc.
+    '''
+    actions = np.eye(action_size)
+    rollouts = []
+    for action in actions:
+        curr_state = env_model(state, action)
+        rollout = [curr_state]
+        for _ in range(0, 4):
+            generated_action = policy_net(curr_state)
+            curr_state = env_model(curr_state, generated_action)
+            rollout.append(curr_state)
+        rollouts.append(rollout)
+    return rollouts
 
 
 if __name__ == "__main__":

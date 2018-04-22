@@ -12,7 +12,7 @@ def softmax(vec):
 
 def env_loss(y, y_hat):
     alpha = 1
-    beta = 1000
+    beta = 100
     y = tf.reshape(y, (-1,))
     y_hat = tf.reshape(y_hat, (-1,))
     reward = y[-1]
@@ -42,12 +42,18 @@ class EnvModel:
         self.input_size = state_size + action_size
         self.output_size = state_size*7 + 1
         self.x = tf.placeholder("float32", [None, self.input_size])
-        W1 = tf.Variable(tf.random_uniform([self.input_size, 20], 0, 1))
-        b1 = tf.Variable(tf.random_uniform([20], 0, 1))
+        W1 = tf.Variable(tf.random_uniform([self.input_size, 600], 0, 1))
+        b1 = tf.Variable(tf.random_uniform([600], 0, 1))
         l1 = tf.nn.elu(tf.matmul(self.x, W1)+b1)
-        W2 = tf.Variable(tf.random_uniform([20, self.output_size], 0, 1))
-        b2 = tf.Variable(tf.random_uniform([self.output_size], 0, 1))
-        self.y_hat = tf.nn.elu(tf.matmul(l1, W2)+b2)
+
+        W2 = tf.Variable(tf.random_uniform([600, 600], 0, 1))
+        b2 = tf.Variable(tf.random_uniform([600], 0, 1))
+        l2 = tf.nn.elu(tf.matmul(l1, W2)+b2)
+
+        W3 = tf.Variable(tf.random_uniform([600, self.output_size], 0, 1))
+        b3 = tf.Variable(tf.random_uniform([self.output_size], 0, 1))
+        self.y_hat = tf.nn.elu(tf.matmul(l2, W3)+b3)
+
         self.y = tf.placeholder("float32", [None, self.output_size]) 
         # loss = tf.losses.mean_squared_error(self.y, self.y_hat)
         self.loss = env_loss(self.y, self.y_hat)

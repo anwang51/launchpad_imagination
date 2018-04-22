@@ -152,7 +152,7 @@ class DQNAgent:
                     #       .format(e, episodes, reward))
                     break
             print("episode: {}/{}, score: {}"
-                          .format(e, episodes, reward))
+                          .format(e, self.episodes, reward))
             # train the agent with the experience of the episode
             training_result.append(reward)
             num_mem = len(agent.memory)

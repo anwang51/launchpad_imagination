@@ -3,7 +3,7 @@ from tensorflow.contrib import rnn
 import numpy as np
 
 class INet:
-	def __init__(self, LSTM_input_size, num_paths, MF_input_size, output_size, path_length, batch_size, sess):
+	def __init__(self, LSTM_input_size, num_paths, MF_input_size, output_size, path_length, sess):
 		self.sess = sess
 
 		#lstm_layer = rnn.BasicLSTMCell(LSTM_input_size,forget_bias=1)

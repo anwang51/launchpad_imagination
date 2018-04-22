@@ -3,6 +3,7 @@ from collections import deque
 import numpy as np
 import random
 import gym
+import gym_sokoban
 from math import log
 
 record = open("performance", "w")
@@ -116,7 +117,7 @@ class DQNAgent:
 
     # Should be def train(self, agent_action)
     def train(self):
-        env = gym.make('CartPole-v1')
+        env = gym.make('Sokoban-small-v0')
         print("env stuff", env.observation_space, env.action_space)
         init = tf.global_variables_initializer()
         self.model.sess.run(init)
@@ -124,50 +125,43 @@ class DQNAgent:
         for e in range(self.episodes):
             # reset state in the beginning of each game
             state = env.reset()
-            state = np.reshape(state, [1, 4])
+            state = np.reshape(state, [1, 37632])
             # time_t represents each frame of the game
             # Our goal is to keep the pole upright as long as possible until score of max_time
             # the more time_t the more score
-            for time_t in range(max_time):
+            done = False
+            while not done:
                 # turn this on if you want to render
-                env.render()
+                # env.render()
                 # Decide action
-                action = self.act(state)
+                action = agent.act(state)
                 # Advance the game to the next frame based on the action.
                 # Reward is 1 for every frame the pole survived
                 next_state, reward, done, _ = env.step(action)
-                if(done and time_t < 499):
-                    reward = -1
-                # # POLE-SPECIFIC
-                # if time_t == max_time - 1:
-                #     reward = 150
-                # elif done:
-                #     reward = -5
-                # else:
-                #     reward = log(time_t + 1) / 10 + 1
-                next_state = np.reshape(next_state, [1, 4])
+                # print("reward ", reward)
+                next_state = np.reshape(next_state, [1, 37632])
                 # Remember the previous state, action, reward, and done
-                self.remember(state, action, reward, next_state, done)
+                agent.remember(state, action, reward, next_state, done)
                 # make next_state the new current state for the next frame.
                 state = next_state
                 # done becomes True when the game ends
                 # ex) The agent drops the pole
                 if done:
-                    # print the score and break out of the loop
-                    print("episode: {}/{}, score: {}"
-                          .format(e, self.episodes, time_t))
+                    # # print the score and break out of the loop
+                    # print("episode: {}/{}, score: {}"
+                    #       .format(e, episodes, reward))
                     break
+            print("episode: {}/{}, score: {}"
+                          .format(e, self.episodes, reward))
             # train the agent with the experience of the episode
-            self.training_result.append(time_t)
-            num_mem = len(self.memory)
-            if(num_mem > 64):
-                num_mem = 64
-            for _ in range(100):
-                agent.replay(num_mem)
-        for e in self.training_result:
-            record.write(str(e) + " ")
+            num_mem = len(agent.memory)
+            if num_mem > 32:
+                num_mem = 32
+            agent.replay(num_mem)
+        agent.model.save_model("tfmodel_weights.h5")
+        
 
-agent = DQNAgent(4,2)
+agent = DQNAgent(37632,8)
 
 def train_agent():
     agent.train()

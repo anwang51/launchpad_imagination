@@ -124,7 +124,18 @@ class DQNAgent:
         # Iterate the game
         for e in range(self.episodes):
             # reset state in the beginning of each game
-            state = env.reset()
+            while True:
+                try:
+                    state = env.reset()
+                except RuntimeWarning:
+                    print("RuntimeWarning caught: retrying")
+                    continue
+                except RuntimeError:
+                    print("RuntimeError caught: retrying")
+                    continue
+                else:
+                    break
+
             state = np.reshape(state, [1, 37632])
             # time_t represents each frame of the game
             # Our goal is to keep the pole upright as long as possible until score of max_time

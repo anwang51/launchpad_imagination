@@ -7,9 +7,13 @@ class INet:
 		self.sess = sess
 
 		lstm_layer = rnn.BasicLSTMCell(LSTM_input_size,forget_bias=1)
+		#Batch_size, path_length, LSTM.input_size
+		self._paths = (tf.placeholder("float", [None, path_length, LSTM_input_size]) for _ in range(num_paths))
+		input_pieces = []
+		for path in self._paths:
+			unstacked = tf.unstack(path, None, 1)
+			input_pieces.append(rnn.static_rnn(lstm_layer, unstacked,dtype="float")[-1])
 
-		self._paths = (tf.placeholder("float", [None, path_length, LSTM_input_size]) for _ in range(num_paths)) #Batch_size, path_length, LSTM.input_size
-		input_pieces = [rnn.static_rnn(lstm_layer,tf.unstack(path, None, 1),dtype="float")[-1] for path in self._paths]
 		self._MF_output = tf.placeholder("float", [None, MF_input_size])
 		input_pieces.add(self._MF_output)
 		x = tf.concat(input_pieces, 1)

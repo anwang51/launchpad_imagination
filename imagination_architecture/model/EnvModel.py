@@ -7,24 +7,51 @@ import random
 state_size = 49
 action_size = 8
 
-def env_loss(y, y_hat):
+def softmax(vec):
+    return np.exp(x) / np.sum(np.exp(x), axis=0)    
 
+def env_loss(y, y_hat):
+    alpha = 0.5
+    beta = 1000
+    y = tf.reshape(y, (-1,))
+    y_hat = tf.reshape(y_hat, (-1,))
+    reward = y[-1]
+    reward_hat = y_hat[-1]
+    y = y[:-1]
+    y_hat = y_hat[:-1]
+    y_mat = tf.reshape(y, (-1, 7))
+    y_hat_mat = tf.reshape(y_hat, (-1, 7))
+    # y_hat_mat = [softmax(row) for row in y_hat_mat]
+    cross_entropy_loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits=y_hat_mat, labels=y_mat)
+    cross_entropy_loss = tf.reduce_sum(cross_entropy_loss)
+    mse_loss = tf.losses.mean_squared_error(reward, reward_hat)
+    combined_loss = tf.add(cross_entropy_loss, mse_loss)
+    return combined_loss
+
+def one_hot(arr, dim):
+    out = []
+    for elem in arr:
+        temp = [0]*dim
+        temp[elem] = 1
+        out.append(temp)
+    return np.array(out)
 
 class EnvModel:
     def __init__(self, sess, state_size, action_size):
         self.sess = sess
         self.input_size = state_size + action_size
         self.output_size = state_size*7 + 1
-        self.x = tf.placeholder("float32", [None, input_size])
-        W1 = tf.Variable(tf.random_uniform([input_size, 20], 0, 1))
+        self.x = tf.placeholder("float32", [None, self.input_size])
+        W1 = tf.Variable(tf.random_uniform([self.input_size, 20], 0, 1))
         b1 = tf.Variable(tf.random_uniform([20], 0, 1))
         l1 = tf.nn.relu(tf.matmul(self.x, W1)+b1)
         W2 = tf.Variable(tf.random_uniform([20, self.output_size], 0, 1))
         b2 = tf.Variable(tf.random_uniform([self.output_size], 0, 1))
         self.y_hat = tf.nn.relu(tf.matmul(l1, W2)+b2)
         self.y = tf.placeholder("float32", [None, self.output_size]) 
-        loss = tf.losses.mean_squared_error(self.y, self.y_hat)
-        self.train = tf.train.AdamOptimizer(0.001).minimize(loss)
+        # loss = tf.losses.mean_squared_error(self.y, self.y_hat)
+        self.loss = env_loss(self.y, self.y_hat)
+        self.train = tf.train.AdamOptimizer(0.001).minimize(self.loss)
         self.saver = tf.train.Saver()
 
     def update(self, prev_state, action, next_state, reward):
@@ -59,6 +86,60 @@ class EnvironmentNN:
     def save(self, name):
         self.model.saver.save(self.model.sess, name)
 
+    def verify(self):
+        while True:
+            try:
+                env = gym.make('TinyWorld-Sokoban-small-v0')
+            except RuntimeWarning:
+                print("RuntimeWarning caught: retrying")
+                continue
+            except RuntimeError:
+                print("RuntimeError caught: retrying")
+                continue
+            else:
+                break
+
+        while True:
+            try:
+                state = env.reset()
+                state = compress(state)
+                prev_state = state
+
+            except RuntimeWarning:
+                print("RuntimeWarning caught: retrying")
+                continue
+            except RuntimeError:
+                print("RuntimeError caught: retrying")
+                continue
+            else:
+                break
+
+        done = False
+        t = 0
+        while not done and t < self.max_time:
+            action = random.randint(0,7)
+            action_vec = one_hot([action], 8)
+            next_state, reward, done, _ = env.step(action)
+            print("reward: ", reward)
+            print("next state: ", compress(next_state))
+            next_state = compress(next_state)
+            next_state_vec = np.reshape(one_hot(next_state, 7), (-1,))
+            #self.model.update(state, action_vec, np.reshape(one_hot(next_state, 7), (-1,)), reward)
+            # print(self.sess.run())
+            x = np.reshape(np.append(prev_state,action_vec), (1, self.state_size + self.action_size))
+            y = np.reshape(np.append(next_state_vec,reward), (1, self.state_size*7 + 1))
+            predicted_state, loss = self.model.sess.run([self.model.y_hat, self.model.loss], {self.model.x: x, self.model.y: y})
+            predicted_state = predicted_state[0]
+            print("predicted reward: ", predicted_state[-1])
+            predicted_state = predicted_state[:-1]
+            predicted_state = np.reshape(predicted_state, (-1, 7))
+            predicted_state = np.argmax(predicted_state, axis = 1)
+            print("predicted_state: ", predicted_state)
+            print("predicted loss: ", loss)
+            prev_state = state
+            state = next_state
+            t += 1
+
     # Should be def train(self, agent_action)
     def train(self):
         while True:
@@ -80,6 +161,8 @@ class EnvironmentNN:
                 try:
                     state = env.reset()
                     state = compress(state)
+                    prev_state = state
+
                 except RuntimeWarning:
                     print("RuntimeWarning caught: retrying")
                     continue
@@ -93,15 +176,20 @@ class EnvironmentNN:
             t = 0
             while not done and t < self.max_time:
                 action = random.randint(0,7)
+                action_vec = one_hot([action], 8)
                 next_state, reward, done, _ = env.step(action)
-                self.model.update(state, action, np.reshape(tf.one_hot(next_state, 7), (-1,)), reward)
-                state = compress(next_state)
+                next_state = compress(next_state)
+                next_state_vec = np.reshape(one_hot(next_state, 7), (-1,))
+                x = np.reshape(np.append(prev_state,action_vec), (1, self.state_size + self.action_size))
+                y = np.reshape(np.append(next_state_vec,reward), (1, self.state_size*7 + 1))
+                print(self.model.sess.run(self.model.loss, {self.model.x: x, self.model.y: y}))
+                self.model.update(state, action_vec, next_state_vec, reward)
+                # print(self.sess.run())
+                prev_state = state
+                state = next_state
                 t += 1
-
             print("episode: {}/{}, score: {}"
                           .format(e, self.episodes, reward))
-        agent.model.save_model("tfmodel_weights.h5")
-
 
 def compress(state):
     new_state = []
@@ -136,12 +224,4 @@ def load_agent():
 
 if __name__ == "__main__":
     nn.train()
-    nn.save(savefile)
-
-
-
-
-
-
-
-
+    nn.verify()

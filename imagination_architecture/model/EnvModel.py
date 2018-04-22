@@ -11,7 +11,7 @@ def softmax(vec):
     return np.exp(x) / np.sum(np.exp(x), axis=0)    
 
 def env_loss(y, y_hat):
-    alpha = 0.5
+    alpha = 1
     beta = 1000
     y = tf.reshape(y, (-1,))
     y_hat = tf.reshape(y_hat, (-1,))
@@ -25,7 +25,7 @@ def env_loss(y, y_hat):
     cross_entropy_loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits=y_hat_mat, labels=y_mat)
     cross_entropy_loss = tf.reduce_sum(cross_entropy_loss)
     mse_loss = tf.losses.mean_squared_error(reward, reward_hat)
-    combined_loss = tf.add(cross_entropy_loss, mse_loss)
+    combined_loss = tf.add(tf.scalar_mul(alpha, cross_entropy_loss), tf.scalar_mul(beta, mse_loss))
     return combined_loss
 
 def one_hot(arr, dim):
@@ -44,10 +44,10 @@ class EnvModel:
         self.x = tf.placeholder("float32", [None, self.input_size])
         W1 = tf.Variable(tf.random_uniform([self.input_size, 20], 0, 1))
         b1 = tf.Variable(tf.random_uniform([20], 0, 1))
-        l1 = tf.nn.relu(tf.matmul(self.x, W1)+b1)
+        l1 = tf.nn.elu(tf.matmul(self.x, W1)+b1)
         W2 = tf.Variable(tf.random_uniform([20, self.output_size], 0, 1))
         b2 = tf.Variable(tf.random_uniform([self.output_size], 0, 1))
-        self.y_hat = tf.nn.relu(tf.matmul(l1, W2)+b2)
+        self.y_hat = tf.nn.elu(tf.matmul(l1, W2)+b2)
         self.y = tf.placeholder("float32", [None, self.output_size]) 
         # loss = tf.losses.mean_squared_error(self.y, self.y_hat)
         self.loss = env_loss(self.y, self.y_hat)
@@ -180,14 +180,14 @@ class EnvironmentNN:
                 next_state, reward, done, _ = env.step(action)
                 next_state = compress(next_state)
                 next_state_vec = np.reshape(one_hot(next_state, 7), (-1,))
-                x = np.reshape(np.append(prev_state,action_vec), (1, self.state_size + self.action_size))
-                y = np.reshape(np.append(next_state_vec,reward), (1, self.state_size*7 + 1))
-                print(self.model.sess.run(self.model.loss, {self.model.x: x, self.model.y: y}))
                 self.model.update(state, action_vec, next_state_vec, reward)
                 # print(self.sess.run())
                 prev_state = state
                 state = next_state
                 t += 1
+            x = np.reshape(np.append(prev_state,action_vec), (1, self.state_size + self.action_size))
+            y = np.reshape(np.append(next_state_vec,reward), (1, self.state_size*7 + 1))
+            print(self.model.sess.run(self.model.loss, {self.model.x: x, self.model.y: y}))
             print("episode: {}/{}, score: {}"
                           .format(e, self.episodes, reward))
 

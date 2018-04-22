@@ -1,4 +1,5 @@
 import gym
+import gym_sokoban
 from dqn_agent import DQNAgent
 import settings
 import numpy as np
@@ -10,7 +11,7 @@ training_result = []
 
 if __name__ == "__main__":
     # initialize gym environment and the agent
-    env = gym.make('CartPole-v0')
+    env = gym.make('Sokoban-v0')
     print(env.observation_space, env.action_space)
     agent = DQNAgent(4,2)
     # Iterate the game
@@ -23,7 +24,7 @@ if __name__ == "__main__":
         # the more time_t the more score
         for time_t in range(500):
             # turn this on if you want to render
-            # env.render()
+            env.render()
             # Decide action
             action = agent.act(state)
             # Advance the game to the next frame based on the action.

@@ -117,7 +117,7 @@ class DQNAgent:
 
     # Should be def train(self, agent_action)
     def train(self):
-        env = gym.make('Sokoban-small-v0')
+        env = gym.make('TinyWorld-Sokoban-small-v0')
         print("env stuff", env.observation_space, env.action_space)
         init = tf.global_variables_initializer()
         self.model.sess.run(init)
@@ -135,8 +135,14 @@ class DQNAgent:
                     continue
                 else:
                     break
-
-            state = np.reshape(state, [1, 37632])
+            print("uncompressed: ", state)
+            state = compress(state)
+            print("state: ", state)
+            #print("shape: ", np.shape(state))
+            #print("shape0: ", np.shape(state[0]))
+            state = np.reshape(state, [1, self.state_size])
+            #print("outside")
+            #print("after reshape: ", state)
             # time_t represents each frame of the game
             # Our goal is to keep the pole upright as long as possible until score of max_time
             # the more time_t the more score
@@ -146,11 +152,14 @@ class DQNAgent:
                 # env.render()
                 # Decide action
                 action = agent.act(state)
+                #print(np.shape(state))
+                #test = np.array([[1,2,3]])
+                #print(np.shape(test))
                 # Advance the game to the next frame based on the action.
                 # Reward is 1 for every frame the pole survived
                 next_state, reward, done, _ = env.step(action)
-                # print("reward ", reward)
-                next_state = np.reshape(next_state, [1, 37632])
+                next_state = compress(next_state)
+                next_state = np.reshape(next_state, [1, self.state_size])
                 # Remember the previous state, action, reward, and done
                 agent.remember(state, action, reward, next_state, done)
                 # make next_state the new current state for the next frame.
@@ -170,9 +179,39 @@ class DQNAgent:
                 num_mem = 32
             agent.replay(num_mem)
         agent.model.save_model("tfmodel_weights.h5")
-        
 
-agent = DQNAgent(37632,8)
+#     0: wall = [0, 0, 0] 
+#     1: floor = [243, 248, 238]
+#     2: box_target = [254, 126, 125]
+#     3: box_on_target = [254, 95, 56]
+#     4: box = [142, 121, 56]
+#     5: player = [160, 212, 56]
+#     6: player_on_target = [219, 212, 56]
+
+def compress(state):
+    new_state = []
+    for block in state:
+        temp = []
+        for arr in block:
+            if arr[0] == 0:
+                temp.append(0)
+            elif arr[0] == 243:
+                temp.append(1)
+            elif arr[0] == 254:
+                if arr[1] == 126:
+                    temp.append(2)
+                if arr[1] == 95:
+                    temp.append(3)
+            elif arr[0] == 142:
+                temp.append(4)
+            elif arr[0] == 160:
+                temp.append(5) 
+            elif arr[0] == 219:
+                temp.append(6)   
+        new_state.append(temp)  
+    return np.array(new_state)
+
+agent = DQNAgent(49,8)
 
 def train_agent():
     agent.train()

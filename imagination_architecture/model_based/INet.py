@@ -9,12 +9,12 @@ class INet:
 		#lstm_layer = rnn.BasicLSTMCell(LSTM_input_size,forget_bias=1)
 		lstm_layer = rnn.core_rnn_cell.BasicLSTMCell(LSTM_input_size,forget_bias=1)
 		#Batch_size, path_length, LSTM.input_size
-		self._paths = tf.placeholder("float", [batch_size*num_paths, path_length, LSTM_input_size])
+		self._paths = tf.placeholder("float", [None, path_length, LSTM_input_size])
 		unstacked = tf.unstack(self._paths, None, 1)
 		outputs, states = rnn.static_rnn(lstm_layer, unstacked, dtype="float")
 		input_matrix = outputs[-1]
 		input_pieces = tf.split(input_matrix, num_paths, 0)
-		self._MF_output = tf.placeholder("float", [batch_size, MF_input_size])
+		self._MF_output = tf.placeholder("float", [None, MF_input_size])
 		input_pieces.append(self._MF_output)
 		x = tf.concat(input_pieces, 1)
 
@@ -26,8 +26,8 @@ class INet:
 		self.output = tf.matmul(l1, W2)+b2
 
 
-		self.q_val = tf.placeholder("float32", [batch_size]) #Proper q-vals as calculated by the bellman equation
-		self.actions = tf.placeholder("float32", [batch_size, output_size]) #Actions stored as one-hot vectors
+		self.q_val = tf.placeholder("float32", [None]) #Proper q-vals as calculated by the bellman equation
+		self.actions = tf.placeholder("float32", [None, output_size]) #Actions stored as one-hot vectors
 		self.q_val_hat = tf.reduce_sum(tf.multiply(self.output, self.actions), axis=1) #The q-vals for the actions selected in game
 		#loss = tf.reduce_sum(tf.square(self.q_val - q_val_hat))
 		self.loss = tf.losses.mean_squared_error(self.q_val, self.q_val_hat)

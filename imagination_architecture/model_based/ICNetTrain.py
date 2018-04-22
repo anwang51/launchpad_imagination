@@ -154,14 +154,12 @@ class DQNAgent:
             print("episode: {}/{}, score: {}"
                           .format(e, self.episodes, reward))
             # train the agent with the experience of the episode
-            training_result.append(reward)
             num_mem = len(agent.memory)
             if num_mem > 32:
                 num_mem = 32
             agent.replay(num_mem)
         agent.model.save_model("tfmodel_weights.h5")
-        for e in training_result:
-            record.write(str(e) + " ")
+        
 
 agent = DQNAgent(37632,8)
 

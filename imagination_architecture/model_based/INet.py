@@ -3,31 +3,31 @@ from tensorflow.contrib import rnn
 import numpy as np
 
 class INet:
-	def __init__(self, LSTM_input_size, num_paths, MF_input_size, output_size, path_length, sess):
+	def __init__(self, LSTM_input_size, num_paths, MF_input_size, output_size, path_length, batch_size, sess):
 		self.sess = sess
 
-		lstm_layer = rnn.BasicLSTMCell(LSTM_input_size,forget_bias=1)
+		#lstm_layer = rnn.BasicLSTMCell(LSTM_input_size,forget_bias=1)
+		lstm_layer = rnn.core_rnn_cell.BasicLSTMCell(LSTM_input_size,forget_bias=1)
 		#Batch_size, path_length, LSTM.input_size
-		self._paths = (tf.placeholder("float", [None, path_length, LSTM_input_size]) for _ in range(num_paths))
-		input_pieces = []
-		for path in self._paths:
-			unstacked = tf.unstack(path, None, 1)
-			input_pieces.append(rnn.static_rnn(lstm_layer, unstacked,dtype="float")[-1])
-
-		self._MF_output = tf.placeholder("float", [None, MF_input_size])
-		input_pieces.add(self._MF_output)
+		self._paths = tf.placeholder("float", [batch_size*num_paths, path_length, LSTM_input_size])
+		unstacked = tf.unstack(self._paths, None, 1)
+		outputs, states = rnn.static_rnn(lstm_layer, unstacked, dtype="float")
+		input_matrix = outputs[-1]
+		input_pieces = tf.split(input_matrix, num_paths, 0)
+		self._MF_output = tf.placeholder("float", [batch_size, MF_input_size])
+		input_pieces.append(self._MF_output)
 		x = tf.concat(input_pieces, 1)
-		self.x = tf.placeholder("float32", [None, input_size])
+
 		W1 = tf.get_variable('W1', [num_paths*LSTM_input_size+MF_input_size, 40], initializer=tf.contrib.layers.xavier_initializer())
 		b1 = tf.get_variable('b1', [40], initializer=tf.contrib.layers.xavier_initializer())
-		l1 = tf.nn.relu(tf.matmul(self.x, W1)+b1)
-		W2 = tf.get_variable('W2', [40, action_num], initializer=tf.contrib.layers.xavier_initializer())
-		b2 = tf.get_variable('b2', [action_num], initializer=tf.contrib.layers.xavier_initializer())
+		l1 = tf.nn.relu(tf.matmul(x, W1)+b1)
+		W2 = tf.get_variable('W2', [40, output_size], initializer=tf.contrib.layers.xavier_initializer())
+		b2 = tf.get_variable('b2', [output_size], initializer=tf.contrib.layers.xavier_initializer())
 		self.output = tf.matmul(l1, W2)+b2
 
 
-		self.q_val = tf.placeholder("float32", [None]) #Proper q-vals as calculated by the bellman equation
-		self.actions = tf.placeholder("float32", [None, action_num]) #Actions stored as one-hot vectors
+		self.q_val = tf.placeholder("float32", [batch_size]) #Proper q-vals as calculated by the bellman equation
+		self.actions = tf.placeholder("float32", [batch_size, output_size]) #Actions stored as one-hot vectors
 		self.q_val_hat = tf.reduce_sum(tf.multiply(self.output, self.actions), axis=1) #The q-vals for the actions selected in game
 		#loss = tf.reduce_sum(tf.square(self.q_val - q_val_hat))
 		self.loss = tf.losses.mean_squared_error(self.q_val, self.q_val_hat)
@@ -48,4 +48,4 @@ class INet:
 
 if __name__ == "__main__":
 	print("compiling")
-	model = INet(15, 4, 5, 5, 4, tf.Session())
+	model = INet(15, 4, 5, 5, 4, 4, tf.Session())

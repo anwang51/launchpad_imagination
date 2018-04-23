@@ -189,6 +189,12 @@ class EnvironmentNN:
                 next_state, reward, done, _ = env.step(action)
                 next_state = compress(next_state)
                 next_state_vec = np.reshape(one_hot(next_state, 7), (-1,))
+
+                print("state ", state)
+                print("action vec ", action_vec)
+                print("next state ", next_state)
+                print("reward ", reward)
+
                 batch.append([state, action_vec, next_state_vec, reward])
                 #self.model.update(state, action_vec, next_state_vec, reward)
                 # print(self.sess.run())
@@ -198,13 +204,23 @@ class EnvironmentNN:
 
             if len(batch) >= 30:
                 batch = np.array(batch)
-                batch = np.random.shuffle(batch)
+                np.random.shuffle(batch)
                 minibatch= np.array(batch[:30])
 
-                mb_state = minibatch[:,0]
-                mb_action = minibatch[:,1]
-                mb_next_state = minibatch[:,2]
-                mb_reward = minibatch[:,3]
+                mb_state = np.array(minibatch[:,0])
+                mb_action = np.array(minibatch[:,1])
+                mb_next_state = np.array(minibatch[:,2])
+                mb_reward = np.array(minibatch[:,3])
+
+                print("update state ", mb_state)
+                print("update action vec ", mb_action)
+                print("update next state ", mb_next_state)
+                print("update reward ", mb_reward)
+
+                print("update state shape ", mb_state.shape)
+                print("update action vec shape ", mb_action.shape)
+                print("update next state shape ", mb_next_state.shape)
+                print("update reward shape ", mb_reward.shape)
 
                 self.model.update(mb_state, mb_action, mb_next_state, mb_reward)
             else:

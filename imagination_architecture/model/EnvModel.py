@@ -63,8 +63,10 @@ class EnvModel:
     def update(self, prev_state, action, next_state, reward):
         # print(np.shape(prev_state))
         # print(prev_state)
-        x = np.reshape(np.append(prev_state,action), (1, self.input_size))
-        y = np.reshape(np.append(next_state,reward), (1, self.output_size))
+        x = np.reshape(np.hstack((prev_state,action)), (-1, self.input_size))
+        y = np.reshape(np.hstack((next_state,reward)), (-1, self.output_size))
+        print("x: ", x)
+        print("y: ", y)
         self.sess.run(self.train, {self.x: x, self.y: y})
 
     def predict(self, prev_state, action):
@@ -178,6 +180,7 @@ class EnvironmentNN:
                 else:
                     break
 
+            batch = []
             done = False
             t = 0
             while not done and t < self.max_time:
@@ -186,14 +189,30 @@ class EnvironmentNN:
                 next_state, reward, done, _ = env.step(action)
                 next_state = compress(next_state)
                 next_state_vec = np.reshape(one_hot(next_state, 7), (-1,))
-                self.model.update(state, action_vec, next_state_vec, reward)
+                batch.append([state, action_vec, next_state_vec, reward])
+                #self.model.update(state, action_vec, next_state_vec, reward)
                 # print(self.sess.run())
-                prev_state = state
-                state = next_state
+                prev_state = state.copy()
+                state = next_state.copy()
                 t += 1
-            x = np.reshape(np.append(prev_state,action_vec), (1, self.state_size + self.action_size))
-            y = np.reshape(np.append(next_state_vec,reward), (1, self.state_size*7 + 1))
-            print(self.model.sess.run(self.model.loss, {self.model.x: x, self.model.y: y}))
+
+            if len(batch) >= 30:
+                batch = np.array(batch)
+                batch = np.random.shuffle(batch)
+                minibatch= np.array(batch[:30])
+
+                mb_state = minibatch[:,0]
+                mb_action = minibatch[:,1]
+                mb_next_state = minibatch[:,2]
+                mb_reward = minibatch[:,3]
+
+                self.model.update(mb_state, mb_action, mb_next_state, mb_reward)
+            else:
+                pass
+
+            # x = np.reshape(np.append(prev_state,action_vec), (1, self.state_size + self.action_size))
+            # y = np.reshape(np.append(next_state_vec,reward), (1, self.state_size*7 + 1))
+            # print(self.model.sess.run(self.model.loss, {self.model.x: x, self.model.y: y}))
             print("episode: {}/{}, score: {}"
                           .format(e, self.episodes, reward))
 

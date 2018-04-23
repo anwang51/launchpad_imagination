@@ -16,7 +16,7 @@ gamma = 0.9
 class ICNet:
     def __init__(self, sess, input_size, action_num):
         self.sess = sess
-        with tf.device("/gpu:0")
+        with tf.device("/gpu:0"):
             self.x = tf.placeholder("float32", [None, input_size])
             W1 = tf.Variable(tf.random_uniform([input_size, 128], 0, 1))
             b1 = tf.Variable(tf.random_uniform([128], 0, 1))
@@ -139,9 +139,7 @@ class DQNAgent:
                     continue
                 else:
                     break
-            print("uncompressed: ", state)
             state = compress(state)
-            print("state: ", state)
             #print("shape: ", np.shape(state))
             #print("shape0: ", np.shape(state[0]))
             state = np.reshape(state, [1, self.state_size])

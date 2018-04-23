@@ -165,6 +165,9 @@ class EnvironmentNN:
         self.model.sess.run(init)
 
         for e in range(self.episodes):
+            if e % 100:
+                self.save("savefile.h5")
+
             while True:
                 try:
                     state = env.reset()
@@ -235,8 +238,8 @@ class EnvironmentNN:
                 x = np.reshape(np.hstack((mb_state,mb_action)), (-1, self.state_size + self.action_size))
                 y = np.reshape(np.hstack((mb_next_state,mb_reward)), (-1, self.state_size*7 + 1))
                 print(self.model.sess.run(self.model.loss, {self.model.x: x, self.model.y: y}))
-                print("episode: {}/{}, score: {}"
-                              .format(e, self.episodes, reward))
+                # print("episode: {}/{}, score: {}".format(e, self.episodes, reward))
+                print("episode: {}, score: {}".format(e, reward))
             else:
                 pass
 

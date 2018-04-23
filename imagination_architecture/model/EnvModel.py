@@ -165,7 +165,7 @@ class EnvironmentNN:
         self.model.sess.run(init)
 
         for e in range(self.episodes):
-            if e % 1:
+            if e % 100:
                 self.save("./savefile.h5")
 
             while True:

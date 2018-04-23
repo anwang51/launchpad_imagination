@@ -123,7 +123,19 @@ class DQNAgent:
 
     # Should be def train(self, agent_action)
     def train(self):
-        env = gym.make('TinyWorld-Sokoban-small-v0')
+        while True:
+            # reset state in the beginning of each game
+            while True:
+                try:
+                    env = gym.make('TinyWorld-Sokoban-small-v0')
+                except RuntimeWarning:
+                    print("RuntimeWarning caught: retrying")
+                    continue
+                except RuntimeError:
+                    print("RuntimeError caught: retrying")
+                    continue
+                else:
+                    break
         print("env stuff", env.observation_space, env.action_space)
         epis = 0
         f = open("performance_timeseries", "a")

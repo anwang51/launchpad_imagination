@@ -13,14 +13,16 @@ def softmax(vec):
 def env_loss(y, y_hat):
     alpha = 1
     beta = 100
-    y = tf.reshape(y, (-1,))
-    y_hat = tf.reshape(y_hat, (-1,))
-    reward = y[-1]
-    reward_hat = y_hat[-1]
-    y = y[:-1]
-    y_hat = y_hat[:-1]
-    y_mat = tf.reshape(y, (-1, 7))
-    y_hat_mat = tf.reshape(y_hat, (-1, 7))
+    print(y)
+    print(y_hat)
+    # y = tf.reshape(y, (-1,))
+    # y_hat = tf.reshape(y_hat, (-1,))
+    reward = y[:,-1]
+    reward_hat = y_hat[:,-1]
+    y = y[:,:-1]
+    y_hat = y_hat[:,:-1]
+    y_mat = tf.reshape(y, (-1, 7, -1))
+    y_hat_mat = tf.reshape(y_hat, (-1, 7, -1))
     # y_hat_mat = [softmax(row) for row in y_hat_mat]
     cross_entropy_loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits=y_hat_mat, labels=y_mat)
     cross_entropy_loss = tf.reduce_sum(cross_entropy_loss)
@@ -189,13 +191,14 @@ class EnvironmentNN:
                 next_state, reward, done, _ = env.step(action)
                 next_state = compress(next_state)
                 next_state_vec = np.reshape(one_hot(next_state, 7), (-1,))
+                # reward = np.array(reward)
 
-                print("state ", state)
-                print("action vec ", action_vec)
-                print("next state ", next_state)
-                print("reward ", reward)
+                # print("state ", state)
+                # print("action vec ", action_vec)
+                # print("next state ", next_state)
+                # print("reward ", reward)
 
-                batch.append([state, action_vec, next_state_vec, reward])
+                batch.append(np.array([state, action_vec, next_state_vec, reward]))
                 #self.model.update(state, action_vec, next_state_vec, reward)
                 # print(self.sess.run())
                 prev_state = state.copy()
@@ -204,13 +207,25 @@ class EnvironmentNN:
 
             if len(batch) >= 30:
                 batch = np.array(batch)
+                print(batch.shape)
                 np.random.shuffle(batch)
                 minibatch= np.array(batch[:30])
+                print(minibatch.shape)
+                print(minibatch[:,0].shape)
 
                 mb_state = np.array(minibatch[:,0])
+                mb_state = np.array([np.array(lst) for lst in mb_state])
+
                 mb_action = np.array(minibatch[:,1])
+                mb_action = np.array([np.array(lst[0]) for lst in mb_action])
+
                 mb_next_state = np.array(minibatch[:,2])
+                mb_next_state = np.array([np.array(lst) for lst in mb_next_state])
+
                 mb_reward = np.array(minibatch[:,3])
+                mb_reward = np.array([np.array([item]) for item in mb_reward])
+                # mb_next_state = np.reshape(np.array(minibatch[:,2]), (30, 343))
+                # mb_reward = np.reshape(np.array(minibatch[:,3]), (30, 1))
 
                 print("update state ", mb_state)
                 print("update action vec ", mb_action)

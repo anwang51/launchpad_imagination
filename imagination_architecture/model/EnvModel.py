@@ -12,22 +12,19 @@ def softmax(vec):
 
 def env_loss(y, y_hat):
     alpha = 1
-    beta = 100
-    print(y)
-    print(y_hat)
-    # y = tf.reshape(y, (-1,))
-    # y_hat = tf.reshape(y_hat, (-1,))
+    beta = 10
     reward = y[:,-1]
     reward_hat = y_hat[:,-1]
     reward_loss = tf.losses.mean_squared_error(reward, reward_hat)
 
     class_true = y[:,:-1]
     class_hat = y_hat[:,:-1]
-    class_mat = tf.reshape(y, (-1, 49, 7))
-    class_mat_hat = tf.reshape(y_hat, (-1, 49, 7))
+    class_mat = tf.reshape(class_true, (-1, 49, 7))
+    class_mat_hat = tf.reshape(class_hat, (-1, 49, 7))
     # y_hat_mat = [softmax(row) for row in y_hat_mat]
     cross_entropy_loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits=class_mat_hat, labels=class_mat)
-    cross_entropy_loss = tf.reduce_sum(cross_entropy_loss)
+    # cross_entropy_loss = tf.reduce_sum(cross_entropy_loss)
+    cross_entropy_loss = tf.reduce_mean(cross_entropy_loss)
     combined_loss = tf.add(tf.scalar_mul(alpha, cross_entropy_loss), tf.scalar_mul(beta, reward_loss))
     return combined_loss
 
@@ -68,8 +65,8 @@ class EnvModel:
         # print(prev_state)
         x = np.reshape(np.hstack((prev_state,action)), (-1, self.input_size))
         y = np.reshape(np.hstack((next_state,reward)), (-1, self.output_size))
-        print("x: ", x)
-        print("y: ", y)
+        # print("x: ", x)
+        # print("y: ", y)
         self.sess.run(self.train, {self.x: x, self.y: y})
 
     def predict(self, prev_state, action):
@@ -84,7 +81,7 @@ class EnvironmentNN:
         self.state_size = state_size
         self.action_size = action_size
         self.model = self._build_model()
-        self.episodes = 3000
+        self.episodes = 1e100
         self.max_time = 500
 
     def _build_model(self):
@@ -208,11 +205,8 @@ class EnvironmentNN:
 
             if len(batch) >= 30:
                 batch = np.array(batch)
-                print(batch.shape)
                 np.random.shuffle(batch)
                 minibatch= np.array(batch[:30])
-                print(minibatch.shape)
-                print(minibatch[:,0].shape)
 
                 mb_state = np.array(minibatch[:,0])
                 mb_state = np.array([np.array(lst) for lst in mb_state])
@@ -225,28 +219,26 @@ class EnvironmentNN:
 
                 mb_reward = np.array(minibatch[:,3])
                 mb_reward = np.array([np.array([item]) for item in mb_reward])
-                # mb_next_state = np.reshape(np.array(minibatch[:,2]), (30, 343))
-                # mb_reward = np.reshape(np.array(minibatch[:,3]), (30, 1))
 
-                print("update state ", mb_state)
-                print("update action vec ", mb_action)
-                print("update next state ", mb_next_state)
-                print("update reward ", mb_reward)
+                # print("update state ", mb_state)
+                # print("update action vec ", mb_action)
+                # print("update next state ", mb_next_state)
+                # print("update reward ", mb_reward)
 
-                print("update state shape ", mb_state.shape)
-                print("update action vec shape ", mb_action.shape)
-                print("update next state shape ", mb_next_state.shape)
-                print("update reward shape ", mb_reward.shape)
+                # print("update state shape ", mb_state.shape)
+                # print("update action vec shape ", mb_action.shape)
+                # print("update next state shape ", mb_next_state.shape)
+                # print("update reward shape ", mb_reward.shape)
 
                 self.model.update(mb_state, mb_action, mb_next_state, mb_reward)
+
+                x = np.reshape(np.hstack((mb_state,mb_action)), (-1, self.state_size + self.action_size))
+                y = np.reshape(np.hstack((mb_next_state,mb_reward)), (-1, self.state_size*7 + 1))
+                print(self.model.sess.run(self.model.loss, {self.model.x: x, self.model.y: y}))
+                print("episode: {}/{}, score: {}"
+                              .format(e, self.episodes, reward))
             else:
                 pass
-
-            # x = np.reshape(np.append(prev_state,action_vec), (1, self.state_size + self.action_size))
-            # y = np.reshape(np.append(next_state_vec,reward), (1, self.state_size*7 + 1))
-            # print(self.model.sess.run(self.model.loss, {self.model.x: x, self.model.y: y}))
-            print("episode: {}/{}, score: {}"
-                          .format(e, self.episodes, reward))
 
 def compress(state):
     new_state = []

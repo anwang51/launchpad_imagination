@@ -177,7 +177,8 @@ class DQNAgent:
                     # print("episode: {}/{}, score: {}"
                     #       .format(e, episodes, reward))
                     break
-            f.write(performance_score + " ")
+            out_str = str(performance_score) + " "
+            f.write(out_str)
             f.flush()
             print("episode: {}/{}, score: {}"
                           .format(epis, float("inf"), performance_score))

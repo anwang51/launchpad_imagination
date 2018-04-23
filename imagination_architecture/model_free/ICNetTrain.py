@@ -16,24 +16,23 @@ gamma = 0.9
 class ICNet:
     def __init__(self, sess, input_size, action_num):
         self.sess = sess
-        with tf.device("/gpu:0"):
-            self.x = tf.placeholder("float32", [None, input_size])
-            W1 = tf.Variable(tf.random_uniform([input_size, 128], 0, 1))
-            b1 = tf.Variable(tf.random_uniform([128], 0, 1))
-            W2 = tf.Variable(tf.random_uniform([128, 128], 0, 1))
-            b2 = tf.Variable(tf.random_uniform([128], 0, 1))
-            W3 = tf.Variable(tf.random_uniform([128, action_num], 0, 1))
-            b3 = tf.Variable(tf.random_uniform([action_num], 0, 1))
-            l1 = tf.nn.elu(tf.matmul(self.x, W1)+b1)
-            l2 = tf.nn.elu(tf.matmul(l1, W2)+b2)
-            self.y_hat = tf.nn.elu(tf.matmul(l2, W3)+b3)
+        self.x = tf.placeholder("float32", [None, input_size])
+        W1 = tf.Variable(tf.random_uniform([input_size, 128], 0, 1))
+        b1 = tf.Variable(tf.random_uniform([128], 0, 1))
+        W2 = tf.Variable(tf.random_uniform([128, 128], 0, 1))
+        b2 = tf.Variable(tf.random_uniform([128], 0, 1))
+        W3 = tf.Variable(tf.random_uniform([128, action_num], 0, 1))
+        b3 = tf.Variable(tf.random_uniform([action_num], 0, 1))
+        l1 = tf.nn.elu(tf.matmul(self.x, W1)+b1)
+        l2 = tf.nn.elu(tf.matmul(l1, W2)+b2)
+        self.y_hat = tf.nn.elu(tf.matmul(l2, W3)+b3)
 
-            #self.y = tf.placeholder("float", [None, action_num])
-            self.q_val = tf.placeholder("float32", [None]) #Proper q-vals as calculated by the bellman equation
-            self.actions = tf.placeholder("float32", [None, action_num]) #Actions stored as one-hot vectors
-            q_val_hat = tf.reduce_sum(tf.multiply(self.y_hat, self.actions), 1) #The q-vals for the actions selected in game
-            #loss = tf.reduce_sum(tf.square(self.q_val - q_val_hat))
-            loss = tf.losses.mean_squared_error(self.q_val, q_val_hat)
+        #self.y = tf.placeholder("float", [None, action_num])
+        self.q_val = tf.placeholder("float32", [None]) #Proper q-vals as calculated by the bellman equation
+        self.actions = tf.placeholder("float32", [None, action_num]) #Actions stored as one-hot vectors
+        q_val_hat = tf.reduce_sum(tf.multiply(self.y_hat, self.actions), 1) #The q-vals for the actions selected in game
+        #loss = tf.reduce_sum(tf.square(self.q_val - q_val_hat))
+        loss = tf.losses.mean_squared_error(self.q_val, q_val_hat)
         self.train = tf.train.AdamOptimizer(0.001).minimize(loss)
         self.saver = tf.train.Saver()
 
@@ -124,18 +123,16 @@ class DQNAgent:
     # Should be def train(self, agent_action)
     def train(self):
         while True:
-            # reset state in the beginning of each game
-            while True:
-                try:
-                    env = gym.make('TinyWorld-Sokoban-small-v0')
-                except RuntimeWarning:
-                    print("RuntimeWarning caught: retrying")
-                    continue
-                except RuntimeError:
-                    print("RuntimeError caught: retrying")
-                    continue
-                else:
-                    break
+            try:
+                env = gym.make('TinyWorld-Sokoban-small-v0')
+            except RuntimeWarning:
+                print("RuntimeWarning caught: retrying")
+                continue
+            except RuntimeError:
+                print("RuntimeError caught: retrying")
+                continue
+            else:
+                break
         print("env stuff", env.observation_space, env.action_space)
         epis = 0
         f = open("performance_timeseries", "a")

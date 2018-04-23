@@ -19,15 +19,16 @@ def env_loss(y, y_hat):
     # y_hat = tf.reshape(y_hat, (-1,))
     reward = y[:,-1]
     reward_hat = y_hat[:,-1]
-    y = y[:,:-1]
-    y_hat = y_hat[:,:-1]
-    y_mat = tf.reshape(y, (-1, 7, -1))
-    y_hat_mat = tf.reshape(y_hat, (-1, 7, -1))
+    reward_loss = tf.losses.mean_squared_error(reward, reward_hat)
+
+    class_true = y[:,:-1]
+    class_hat = y_hat[:,:-1]
+    class_mat = tf.reshape(y, (-1, 49, 7))
+    class_mat_hat = tf.reshape(y_hat, (-1, 49, 7))
     # y_hat_mat = [softmax(row) for row in y_hat_mat]
-    cross_entropy_loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits=y_hat_mat, labels=y_mat)
+    cross_entropy_loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits=class_mat_hat, labels=class_mat)
     cross_entropy_loss = tf.reduce_sum(cross_entropy_loss)
-    mse_loss = tf.losses.mean_squared_error(reward, reward_hat)
-    combined_loss = tf.add(tf.scalar_mul(alpha, cross_entropy_loss), tf.scalar_mul(beta, mse_loss))
+    combined_loss = tf.add(tf.scalar_mul(alpha, cross_entropy_loss), tf.scalar_mul(beta, reward_loss))
     return combined_loss
 
 def one_hot(arr, dim):

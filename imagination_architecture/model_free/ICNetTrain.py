@@ -68,6 +68,8 @@ class DQNAgent:
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
         self.model = self._build_model()
+        init = tf.global_variables_initializer()
+        self.model.sess.run(init)
         self.episodes = 3000
         self.training_result = []
 
@@ -123,8 +125,6 @@ class DQNAgent:
     def train(self):
         env = gym.make('TinyWorld-Sokoban-small-v0')
         print("env stuff", env.observation_space, env.action_space)
-        init = tf.global_variables_initializer()
-        self.model.sess.run(init)
         epis = 0
         f = open("performance_timeseries", "a")
         # Iterate the game

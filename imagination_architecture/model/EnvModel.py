@@ -81,7 +81,7 @@ class EnvironmentNN:
         self.state_size = state_size
         self.action_size = action_size
         self.model = self._build_model()
-        self.episodes = 1e100
+        self.episodes = int(1e100)
         self.max_time = 500
 
     def _build_model(self):

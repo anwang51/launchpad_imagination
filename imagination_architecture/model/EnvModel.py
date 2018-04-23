@@ -13,16 +13,14 @@ def softmax(vec):
 def env_loss(y, y_hat):
     alpha = 1
     beta = 100
-    print(y)
-    print(y_hat)
-    # y = tf.reshape(y, (-1,))
-    # y_hat = tf.reshape(y_hat, (-1,))
-    reward = y[:,-1]
-    reward_hat = y_hat[:,-1]
-    y = y[:,:-1]
-    y_hat = y_hat[:,:-1]
-    y_mat = tf.reshape(y, (-1, 7, -1))
-    y_hat_mat = tf.reshape(y_hat, (-1, 7, -1))
+    y = tf.reshape(y, (-1,))
+    y_hat = tf.reshape(y_hat, (-1,))
+    reward = y[-1]
+    reward_hat = y_hat[-1]
+    y = y[:-1]
+    y_hat = y_hat[:-1]
+    y_mat = tf.reshape(y, (-1, 7))
+    y_hat_mat = tf.reshape(y_hat, (-1, 7))
     # y_hat_mat = [softmax(row) for row in y_hat_mat]
     cross_entropy_loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits=y_hat_mat, labels=y_mat)
     cross_entropy_loss = tf.reduce_sum(cross_entropy_loss)

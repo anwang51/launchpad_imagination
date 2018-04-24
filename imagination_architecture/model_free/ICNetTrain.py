@@ -63,7 +63,7 @@ class DQNAgent:
         self.state_size = state_size
         self.action_size = action_size
         self.memory = deque(maxlen=2000)
-        self.epsilon = 0.2  # exploration rate
+        self.epsilon = 1  # exploration rate
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
         self.model = self._build_model()
@@ -195,9 +195,10 @@ class DQNAgent:
                           .format(epis, float("inf"), performance_score))
             # train the agent with the experience of the episode
             num_mem = len(agent.memory)
-            if num_mem > 32:
-                num_mem = 32
-            agent.replay(num_mem)
+            if num_mem > 64:
+                num_mem = 64
+            for _ in range(100):
+                agent.replay(num_mem)
             epis += 1
         agent.model.save_model("tfmodel_weights.h5")
 
@@ -234,7 +235,7 @@ def compress(state):
 
 #Sokoban: 49, 8
 #Cartpole: 4, 2
-which_env = ['TinyWorld-Sokoban-small-v0', 'CartPole-v0'][1]
+which_env = ['TinyWorld-Sokoban-small-v0', 'CartPole-v0'][0]
 if which_env == 'TinyWorld-Sokoban-small-v0':
     agent = DQNAgent(49,8)
 else:

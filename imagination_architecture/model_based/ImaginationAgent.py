@@ -1,6 +1,6 @@
 # Deep Q-learning Agent
 class ImaginationAgent:
-    def __init__(self, state_size, action_size):
+    def __init__(self, state_size, action_size, num_paths):
         self.state_size = state_size
         self.action_size = action_size
         self.memory = deque(maxlen=2000)
@@ -13,8 +13,10 @@ class ImaginationAgent:
 
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
-        session = tf.Session()
-        model = ICNet(session, self.state_size, self.action_size)
+        session1 = tf.Session()
+        session2 = tf.Session()
+        ICNet = ICNet(session1, self.state_size, self.action_size)
+        INet = INet(session2, self.state_size, )
         return model
 
     def remember(self, state, action, reward, next_state, done):
@@ -26,18 +28,30 @@ class ImaginationAgent:
         act_values = self.model.action(state)
         return act_values  # returns action
 
+    def format_paths(paths_list_list):
+        next_list = zip(paths_list_list)
+        ret = []
+        for paths in next_list:
+            ret.extend(paths)
+
     def replay(self, batch_size):
         minibatch = random.sample(self.memory, batch_size)
-        states = []
+
+        paths_list_list = []
+        MF_outputs = []
         actions = []
         rewards = []
-        next_states = []
+        next_paths = []
+        next_MF_outputs = []
         dones = []
         for tup in minibatch:
-            states.append(tup[0][0])
+            paths = tup[0][0]
+            paths_list_list.append(paths)
+            MF_outputs.append(tup[0][1])
             actions.append(tup[1])
             rewards.append(tup[2])
             next_states.append(tup[3][0])
+            next_MF_outputs.append(tup[3][1])
             dones.append(tup[4])
         states = np.array(states)
         #print("actions_1", actions)

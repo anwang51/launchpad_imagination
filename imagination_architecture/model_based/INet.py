@@ -12,6 +12,7 @@ class INet:
 		self._paths = tf.placeholder("float", [None, path_length, LSTM_input_size])
 		unstacked = tf.unstack(self._paths, None, 1)
 		outputs, states = rnn.static_rnn(lstm_layer, unstacked, dtype="float")
+
 		input_matrix = outputs[-1]
 		input_pieces = tf.split(input_matrix, num_paths, 0)
 		self._MF_output = tf.placeholder("float", [None, MF_input_size])
@@ -48,4 +49,4 @@ class INet:
 
 if __name__ == "__main__":
 	print("compiling")
-	model = INet(15, 4, 5, 5, 4, 4, tf.Session())
+	model = INet(15, 4, 5, 5, 4 tf.Session())

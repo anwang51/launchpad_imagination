@@ -124,7 +124,7 @@ class DQNAgent:
     def train(self):
         while True:
             try:
-                env = gym.make('TinyWorld-Sokoban-small-v0')
+                env = gym.make(which_env)
             except RuntimeWarning:
                 print("RuntimeWarning caught: retrying")
                 continue
@@ -150,7 +150,8 @@ class DQNAgent:
                     continue
                 else:
                     break
-            state = compress(state)
+            if which_env == 'TinyWorld-Sokoban-small-v0':
+                state = compress(state)
             #print("shape: ", np.shape(state))
             #print("shape0: ", np.shape(state[0]))
             state = np.reshape(state, [1, self.state_size])
@@ -173,7 +174,8 @@ class DQNAgent:
                 # Reward is 1 for every frame the pole survived
                 next_state, reward, done, _ = env.step(action)
                 performance_score += reward
-                next_state = compress(next_state)
+                if which_env == 'TinyWorld-Sokoban-small-v0':
+                    next_state = compress(next_state)
                 next_state = np.reshape(next_state, [1, self.state_size])
                 # Remember the previous state, action, reward, and done
                 agent.remember(state, action, reward, next_state, done)
@@ -230,7 +232,13 @@ def compress(state):
         new_state.append(temp)  
     return np.array(new_state)
 
-agent = DQNAgent(49,8)
+#Sokoban: 49, 8
+#Cartpole: 4, 2
+which_env = ['TinyWorld-Sokoban-small-v0', 'CartPole-v0'][1]
+if which_env == 'TinyWorld-Sokoban-small-v0':
+    agent = DQNAgent(49,8)
+else:
+    agent = DQNAgent(4, 2)
 
 def train_agent():
     agent.train()

@@ -3,7 +3,6 @@ from collections import deque
 import numpy as np
 import random
 import gym
-import gym_sokoban
 from math import log
 
 record = open("performance", "w")
@@ -17,15 +16,12 @@ class ICNet:
     def __init__(self, sess, input_size, action_num):
         self.sess = sess
         self.x = tf.placeholder("float32", [None, input_size])
-        W1 = tf.Variable(tf.random_uniform([input_size, 128], 0, 1))
-        b1 = tf.Variable(tf.random_uniform([128], 0, 1))
-        W2 = tf.Variable(tf.random_uniform([128, 128], 0, 1))
-        b2 = tf.Variable(tf.random_uniform([128], 0, 1))
-        W3 = tf.Variable(tf.random_uniform([128, action_num], 0, 1))
-        b3 = tf.Variable(tf.random_uniform([action_num], 0, 1))
-        l1 = tf.nn.elu(tf.matmul(self.x, W1)+b1)
-        l2 = tf.nn.elu(tf.matmul(l1, W2)+b2)
-        self.y_hat = tf.nn.elu(tf.matmul(l2, W3)+b3)
+        W1 = tf.Variable(tf.random_uniform([input_size, 20], 0, 1))
+        b1 = tf.Variable(tf.random_uniform([20], 0, 1))
+        l1 = tf.nn.relu(tf.matmul(self.x, W1)+b1)
+        W2 = tf.Variable(tf.random_uniform([20, action_num], 0, 1))
+        b2 = tf.Variable(tf.random_uniform([action_num], 0, 1))
+        self.y_hat = tf.nn.relu(tf.matmul(l1, W2)+b2)
 
         #self.y = tf.placeholder("float", [None, action_num])
         self.q_val = tf.placeholder("float32", [None]) #Proper q-vals as calculated by the bellman equation
@@ -67,8 +63,6 @@ class DQNAgent:
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
         self.model = self._build_model()
-        init = tf.global_variables_initializer()
-        self.model.sess.run(init)
         self.episodes = 3000
         self.training_result = []
 
@@ -122,123 +116,58 @@ class DQNAgent:
 
     # Should be def train(self, agent_action)
     def train(self):
-        while True:
-            try:
-                env = gym.make(which_env)
-            except RuntimeWarning:
-                print("RuntimeWarning caught: retrying")
-                continue
-            except RuntimeError:
-                print("RuntimeError caught: retrying")
-                continue
-            else:
-                break
+        env = gym.make('CartPole-v1')
         print("env stuff", env.observation_space, env.action_space)
-        epis = 0
-        f = open("performance_timeseries", "a")
+        init = tf.global_variables_initializer()
+        self.model.sess.run(init)
         # Iterate the game
-        while True:
+        for e in range(self.episodes):
             # reset state in the beginning of each game
-            while True:
-                try:
-                    state = env.reset()
-                except RuntimeWarning:
-                    print("RuntimeWarning caught: retrying")
-                    continue
-                except RuntimeError:
-                    print("RuntimeError caught: retrying")
-                    continue
-                else:
-                    break
-            if which_env == 'TinyWorld-Sokoban-small-v0':
-                state = compress(state)
-            #print("shape: ", np.shape(state))
-            #print("shape0: ", np.shape(state[0]))
-            state = np.reshape(state, [1, self.state_size])
-            #print("outside")
-            #print("after reshape: ", state)
+            state = env.reset()
+            state = np.reshape(state, [1, 4])
             # time_t represents each frame of the game
             # Our goal is to keep the pole upright as long as possible until score of max_time
             # the more time_t the more score
-            performance_score = 0
-            done = False
-            while not done:
+            for time_t in range(max_time):
                 # turn this on if you want to render
-                # env.render()
+                #env.render()s
                 # Decide action
-                action = agent.act(state)
-                #print(np.shape(state))
-                #test = np.array([[1,2,3]])
-                #print(np.shape(test))
+                action = self.act(state)
                 # Advance the game to the next frame based on the action.
                 # Reward is 1 for every frame the pole survived
                 next_state, reward, done, _ = env.step(action)
-                performance_score += reward
-                if which_env == 'TinyWorld-Sokoban-small-v0':
-                    next_state = compress(next_state)
-                next_state = np.reshape(next_state, [1, self.state_size])
+                if(done and time_t < 499):
+                    reward = -1
+                # # POLE-SPECIFIC
+                # if time_t == max_time - 1:
+                #     reward = 150
+                # elif done:
+                #     reward = -5
+                # else:
+                #     reward = log(time_t + 1) / 10 + 1
+                next_state = np.reshape(next_state, [1, 4])
                 # Remember the previous state, action, reward, and done
-                agent.remember(state, action, reward, next_state, done)
+                self.remember(state, action, reward, next_state, done)
                 # make next_state the new current state for the next frame.
                 state = next_state
                 # done becomes True when the game ends
                 # ex) The agent drops the pole
                 if done:
-                    # # print the score and break out of the loop
-                    # print("episode: {}/{}, score: {}"
-                    #       .format(e, episodes, reward))
+                    # print the score and break out of the loop
+                    print("episode: {}/{}, score: {}"
+                          .format(e, self.episodes, time_t))
                     break
-            out_str = str(performance_score) + " "
-            f.write(out_str)
-            f.flush()
-            print("episode: {}/{}, score: {}"
-                          .format(epis, float("inf"), performance_score))
             # train the agent with the experience of the episode
-            num_mem = len(agent.memory)
-            if num_mem > 32:
-                num_mem = 32
-            agent.replay(num_mem)
-            epis += 1
-        agent.model.save_model("tfmodel_weights.h5")
+            self.training_result.append(time_t)
+            num_mem = len(self.memory)
+            if(num_mem > 64):
+                num_mem = 64
+            for _ in range(100):
+                agent.replay(num_mem)
+        for e in self.training_result:
+            record.write(str(e) + " ")
 
-#     0: wall = [0, 0, 0] 
-#     1: floor = [243, 248, 238]
-#     2: box_target = [254, 126, 125]
-#     3: box_on_target = [254, 95, 56]
-#     4: box = [142, 121, 56]
-#     5: player = [160, 212, 56]
-#     6: player_on_target = [219, 212, 56]
-
-def compress(state):
-    new_state = []
-    for block in state:
-        temp = []
-        for arr in block:
-            if arr[0] == 0:
-                temp.append(0)
-            elif arr[0] == 243:
-                temp.append(1)
-            elif arr[0] == 254:
-                if arr[1] == 126:
-                    temp.append(2)
-                if arr[1] == 95:
-                    temp.append(3)
-            elif arr[0] == 142:
-                temp.append(4)
-            elif arr[0] == 160:
-                temp.append(5) 
-            elif arr[0] == 219:
-                temp.append(6)   
-        new_state.append(temp)  
-    return np.array(new_state)
-
-#Sokoban: 49, 8
-#Cartpole: 4, 2
-which_env = ['TinyWorld-Sokoban-small-v0', 'CartPole-v0'][1]
-if which_env == 'TinyWorld-Sokoban-small-v0':
-    agent = DQNAgent(49,8)
-else:
-    agent = DQNAgent(4, 2)
+agent = DQNAgent(4,2)
 
 def train_agent():
     agent.train()

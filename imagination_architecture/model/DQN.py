@@ -2,47 +2,65 @@ import tensorflow as tf
 from collections import deque
 import numpy as np
 import random
+import gym
+import gym_sokoban
 from math import log
 
 record = open("performance", "w")
 savefile = "./savefile.h5"
 
-class DQN_Model:
+# POLE-SPECIFIC
+max_time = 500
 
-    def __init__(self, sess, input_size, action_size, max_time=float('inf'), gamma=0.9):
+gamma = 0.9
+class ICNet:
+    def __init__(self, sess, input_size, action_num):
         self.sess = sess
-        self.max_time = max_time
-        self.gamma = gamma
-        self.x = tf.placeholder("float32", [None, input_size])
-        W1 = tf.Variable(tf.random_uniform([input_size, 20], 0, 1))
-        b1 = tf.Variable(tf.random_uniform([20], 0, 1))
-        l1 = tf.nn.relu(tf.matmul(self.x, W1)+b1)
-        W2 = tf.Variable(tf.random_uniform([20, action_size], 0, 1))
-        b2 = tf.Variable(tf.random_uniform([action_size], 0, 1))
-        self.y_hat = tf.nn.relu(tf.matmul(l1, W2)+b2)
-        self.q_val = tf.placeholder("float32", [None]) #Proper q-vals as calculated by the bellman equation
-        self.actions = tf.placeholder("float32", [None, action_size]) #Actions stored as one-hot vectors
-        q_val_hat = tf.reduce_sum(tf.multiply(self.y_hat, self.actions), 1) #The q-vals for the actions selected in game
-        loss = tf.losses.mean_squared_error(self.q_val, q_val_hat)
+        with tf.device("/gpu:0"):
+            self.x = tf.placeholder("float32", [None, input_size])
+            W1 = tf.Variable(tf.random_uniform([input_size, 128], 0, 1))
+            b1 = tf.Variable(tf.random_uniform([128], 0, 1))
+            W2 = tf.Variable(tf.random_uniform([128, 128], 0, 1))
+            b2 = tf.Variable(tf.random_uniform([128], 0, 1))
+            W3 = tf.Variable(tf.random_uniform([128, action_num], 0, 1))
+            b3 = tf.Variable(tf.random_uniform([action_num], 0, 1))
+            l1 = tf.nn.elu(tf.matmul(self.x, W1)+b1)
+            l2 = tf.nn.elu(tf.matmul(l1, W2)+b2)
+            self.y_hat = tf.nn.elu(tf.matmul(l2, W3)+b3)
+
+            #self.y = tf.placeholder("float", [None, action_num])
+            self.q_val = tf.placeholder("float32", [None]) #Proper q-vals as calculated by the bellman equation
+            self.actions = tf.placeholder("float32", [None, action_num]) #Actions stored as one-hot vectors
+            q_val_hat = tf.reduce_sum(tf.multiply(self.y_hat, self.actions), 1) #The q-vals for the actions selected in game
+            #loss = tf.reduce_sum(tf.square(self.q_val - q_val_hat))
+            loss = tf.losses.mean_squared_error(self.q_val, q_val_hat)
         self.train = tf.train.AdamOptimizer(0.001).minimize(loss)
         self.saver = tf.train.Saver()
 
     def update(self, state, action, reward, next_state, done):
+        #print("next_state", next_state)
+        #print("rewards", reward)
         reward_vecs = self.sess.run(self.y_hat, {self.x: next_state})
-        q_vals = reward + self.gamma*np.amax(reward_vecs, 1)*(1-done)
+        #print("Reward Vec: ", reward_vecs)
+        #print("update terms", np.amax(reward_vecs, 1))
+        q_vals = reward + gamma*np.amax(reward_vecs, 1)*(1-done)
+
+
+        #print("q_vals: ", q_vals)
+
         self.sess.run(self.train, {self.x: state, self.q_val: q_vals, self.actions: action})
 
     def action(self, state):
         reward_vec = self.sess.run(self.y_hat, {self.x: state})
+        #print(reward_vec)
+        #print(np.argmax(reward_vec))
         return np.argmax(reward_vec)
 
 
 
 # Deep Q-learning Agent
 class DQNAgent:
-
-    def __init__(self, state_size, action_size, env):
-        self.env = env
+    def __init__(self, state_size, action_size):
         self.state_size = state_size
         self.action_size = action_size
         self.memory = deque(maxlen=2000)
@@ -56,7 +74,7 @@ class DQNAgent:
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
         session = tf.Session()
-        model = DQN_Model(session, self.state_size, self.action_size)
+        model = ICNet(session, self.state_size, self.action_size)
         return model
 
     def remember(self, state, action, reward, next_state, done):
@@ -103,44 +121,115 @@ class DQNAgent:
 
     # Should be def train(self, agent_action)
     def train(self):
+        env = gym.make('TinyWorld-Sokoban-small-v0')
+        print("env stuff", env.observation_space, env.action_space)
         init = tf.global_variables_initializer()
         self.model.sess.run(init)
+        epis = 0
+        f = open("performance_timeseries", "a")
         # Iterate the game
-        for e in range(self.episodes):
+        while True:
             # reset state in the beginning of each game
-            state = self.env.reset()
-            state = np.reshape(state, [1, 4])
+            while True:
+                try:
+                    state = env.reset()
+                except RuntimeWarning:
+                    print("RuntimeWarning caught: retrying")
+                    continue
+                except RuntimeError:
+                    print("RuntimeError caught: retrying")
+                    continue
+                else:
+                    break
+            state = compress(state)
+            #print("shape: ", np.shape(state))
+            #print("shape0: ", np.shape(state[0]))
+            state = np.reshape(state, [1, self.state_size])
+            #print("outside")
+            #print("after reshape: ", state)
             # time_t represents each frame of the game
             # Our goal is to keep the pole upright as long as possible until score of max_time
             # the more time_t the more score
-            for time_t in range(self.max_time):
+            performance_score = 0
+            done = False
+            while not done:
                 # turn this on if you want to render
-                self.env.render()
+                # env.render()
                 # Decide action
-                action = self.act(state)
+                action = agent.act(state)
+                #print(np.shape(state))
+                #test = np.array([[1,2,3]])
+                #print(np.shape(test))
                 # Advance the game to the next frame based on the action.
                 # Reward is 1 for every frame the pole survived
-                next_state, reward, done, _ = self.env.step(action)
-                if(done and time_t < 500):
-                    reward = -1
-                next_state = np.reshape(next_state, [1, 4])
+                next_state, reward, done, _ = env.step(action)
+                performance_score += reward
+                next_state = compress(next_state)
+                next_state = np.reshape(next_state, [1, self.state_size])
                 # Remember the previous state, action, reward, and done
-                self.remember(state, action, reward, next_state, done)
+                agent.remember(state, action, reward, next_state, done)
                 # make next_state the new current state for the next frame.
                 state = next_state
                 # done becomes True when the game ends
                 # ex) The agent drops the pole
                 if done:
-                    # print the score and break out of the loop
-                    print("episode: {}/{}, score: {}"
-                          .format(e, self.episodes, time_t))
+                    # # print the score and break out of the loop
+                    # print("episode: {}/{}, score: {}"
+                    #       .format(e, episodes, reward))
                     break
+            out_str = str(performance_score) + " "
+            f.write(out_str)
+            f.flush()
+            print("episode: {}/{}, score: {}"
+                          .format(epis, float("inf"), performance_score))
             # train the agent with the experience of the episode
-            self.training_result.append(time_t)
-            num_mem = len(self.memory)
-            if(num_mem > 64):
-                num_mem = 64
-            for _ in range(100):
-                agent.replay(num_mem)
-        for e in self.training_result:
-            record.write(str(e) + " ")
+            num_mem = len(agent.memory)
+            if num_mem > 32:
+                num_mem = 32
+            agent.replay(num_mem)
+            epis += 1
+        agent.model.save_model("tfmodel_weights.h5")
+
+#     0: wall = [0, 0, 0] 
+#     1: floor = [243, 248, 238]
+#     2: box_target = [254, 126, 125]
+#     3: box_on_target = [254, 95, 56]
+#     4: box = [142, 121, 56]
+#     5: player = [160, 212, 56]
+#     6: player_on_target = [219, 212, 56]
+
+def compress(state):
+    new_state = []
+    for block in state:
+        temp = []
+        for arr in block:
+            if arr[0] == 0:
+                temp.append(0)
+            elif arr[0] == 243:
+                temp.append(1)
+            elif arr[0] == 254:
+                if arr[1] == 126:
+                    temp.append(2)
+                if arr[1] == 95:
+                    temp.append(3)
+            elif arr[0] == 142:
+                temp.append(4)
+            elif arr[0] == 160:
+                temp.append(5) 
+            elif arr[0] == 219:
+                temp.append(6)   
+        new_state.append(temp)  
+    return np.array(new_state)
+
+agent = DQNAgent(49,8)
+
+def train_agent():
+    agent.train()
+    agent.save(savefile)
+
+def load_agent():
+    agent.load(savefile)
+
+
+if __name__ == "__main__":
+    train_agent()

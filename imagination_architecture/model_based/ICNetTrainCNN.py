@@ -18,9 +18,10 @@ class ICNet:
         self.sess = sess
         #with tf.device("/gpu:0"):
         self.x = tf.placeholder("float32", [None, input_height, input_width, 3])
+        layer1 = tf.image.resize_images(self.x, [80, 120])
         # Convolutional Layer #1
         conv1 = tf.layers.conv2d(
-        inputs=self.x,
+        inputs=layer1,
         filters=32,
         kernel_size=[3, 3],
         padding="same",
@@ -28,8 +29,8 @@ class ICNet:
 
         # Pooling Layer #1
         pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2)
-        c1height = math.ceil(input_height / 2)
-        c1width = math.ceil(input_width / 2)
+        c1height = math.ceil(80 / 2)
+        c1width = math.ceil(120 / 2)
 
         # Convolutional Layer #2 and Pooling Layer #2
         conv2 = tf.layers.conv2d(
@@ -103,7 +104,7 @@ class DQNAgent:
         self.state_height = state_height
         self.action_size = action_size
         self.memory = deque(maxlen=2000)
-        self.epsilon = 0.2  # exploration rate
+        self.epsilon = 1  # exploration rate
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
         self.model = self._build_model()
@@ -207,6 +208,8 @@ class DQNAgent:
                 _, reward, done, _ = env.step(action)
                 next_state = env.render(mode='rgb_array')
                 performance_score += reward
+                if done:
+                    reward = -2
                 # Remember the previous state, action, reward, and done
                 agent.remember(state, action, reward, next_state, done)
                 # make next_state the new current state for the next frame.

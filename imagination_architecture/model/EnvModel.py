@@ -12,7 +12,7 @@ def softmax(vec):
 
 def env_loss(y, y_hat):
     alpha = 1
-    beta = 10
+    beta = 300
     reward = y[:,-1]
     reward_hat = y_hat[:,-1]
     reward_loss = tf.losses.mean_squared_error(reward, reward_hat)

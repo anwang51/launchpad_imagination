@@ -59,7 +59,7 @@ class DQNAgent:
         self.state_size = state_size
         self.action_size = action_size
         self.memory = deque(maxlen=2000)
-        self.epsilon = 0.2  # exploration rate
+        self.epsilon = .8  # exploration rate
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
         self.model = self._build_model()
@@ -116,15 +116,37 @@ class DQNAgent:
 
     # Should be def train(self, agent_action)
     def train(self):
-        env = gym.make('CartPole-v1')
+        while True:
+            try:
+                env = gym.make(env_name)
+            except RuntimeWarning:
+                print("RuntimeWarning caught: retrying")
+                continue
+            except RuntimeError:
+                print("RuntimeError caught: retrying")
+                continue
+            else:
+                break
+        #env = gym.make('CartPole-v1')
         print("env stuff", env.observation_space, env.action_space)
         init = tf.global_variables_initializer()
         self.model.sess.run(init)
         # Iterate the game
         for e in range(self.episodes):
             # reset state in the beginning of each game
-            state = env.reset()
-            state = np.reshape(state, [1, 4])
+            while True:
+                try:
+                    state = env.reset()
+                except RuntimeWarning:
+                    print("RuntimeWarning caught: retrying")
+                    continue
+                except RuntimeError:
+                    print("RuntimeError caught: retrying")
+                    continue
+                else:
+                    break
+            #state = env.reset()
+            state = np.reshape(state, [1, self.state_size])
             # time_t represents each frame of the game
             # Our goal is to keep the pole upright as long as possible until score of max_time
             # the more time_t the more score
@@ -145,7 +167,7 @@ class DQNAgent:
                 #     reward = -5
                 # else:
                 #     reward = log(time_t + 1) / 10 + 1
-                next_state = np.reshape(next_state, [1, 4])
+                next_state = np.reshape(next_state, [1, self.state_size])
                 # Remember the previous state, action, reward, and done
                 self.remember(state, action, reward, next_state, done)
                 # make next_state the new current state for the next frame.
@@ -154,7 +176,7 @@ class DQNAgent:
                 # ex) The agent drops the pole
                 if done:
                     # print the score and break out of the loop
-                    print("episode: {}/{}, score: {}"
+                    if e%10==0: print("episode: {}/{}, score: {}"
                           .format(e, self.episodes, time_t))
                     break
             # train the agent with the experience of the episode
@@ -166,8 +188,35 @@ class DQNAgent:
                 agent.replay(num_mem)
         for e in self.training_result:
             record.write(str(e) + " ")
+def compress(state):
+    new_state = []
+    for block in state:
+        temp = []
+        for arr in block:
+            if arr[0] == 0:
+                temp.append(0)
+            elif arr[0] == 243:
+                temp.append(1)
+            elif arr[0] == 254:
+                if arr[1] == 126:
+                    temp.append(2)
+                if arr[1] == 95:
+                    temp.append(3)
+            elif arr[0] == 142:
+                temp.append(4)
+            elif arr[0] == 160:
+                temp.append(5) 
+            elif arr[0] == 219:
+                temp.append(6)   
+        new_state.append(temp)  
+    return np.array(new_state)
 
-agent = DQNAgent(4,2)
+env_name = 'CartPole-v1'    
+if env_name == 'TinyWorld-Sokoban-small-v0':
+    agent = DQNAgent(49,8)
+else:
+    print('CartPole')
+    agent = DQNAgent(4, 2)
 
 def train_agent():
     agent.train()

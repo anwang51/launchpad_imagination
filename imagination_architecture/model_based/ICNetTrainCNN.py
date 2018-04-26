@@ -22,7 +22,7 @@ class ICNet:
         # Convolutional Layer #1
         conv1 = tf.layers.conv2d(
         inputs=layer1,
-        filters=32,
+        filters=16,
         kernel_size=[3, 3],
         padding="same",
         activation=tf.nn.relu)
@@ -35,7 +35,7 @@ class ICNet:
         # Convolutional Layer #2 and Pooling Layer #2
         conv2 = tf.layers.conv2d(
         inputs=pool1,
-        filters=64,
+        filters=32,
         kernel_size=[3, 3],
         padding="same",
         activation=tf.nn.relu)
@@ -47,7 +47,7 @@ class ICNet:
         # Convolutional Layer #2 and Pooling Layer #2
         conv3 = tf.layers.conv2d(
         inputs=pool2,
-        filters=64,
+        filters=32,
         kernel_size=[3, 3],
         padding="same",
         activation=tf.nn.relu)
@@ -56,10 +56,10 @@ class ICNet:
         c3height = math.ceil(c2height / 2)
         c3width = math.ceil(c2width / 2)
         # Dense Layer
-        pool3_flat = tf.reshape(pool3, [-1, c3width*c3height * 64 * 4])
+        pool3_flat = tf.reshape(pool3, [-1, c3width*c3height * 32 * 4])
 
 
-        W1 = tf.Variable(tf.random_uniform([c3width*c3height * 64 * 4, action_num], 0, 1))
+        W1 = tf.Variable(tf.random_uniform([c3width*c3height * 32 * 4, action_num], 0, 1))
         b1 = tf.Variable(tf.random_uniform([action_num], 0, 1))
 
         self.y_hat = tf.nn.elu(tf.matmul(pool3_flat, W1)+b1)
@@ -77,8 +77,8 @@ class ICNet:
         #print("next_state", next_state)
         #print("rewards", reward)
         reward_vecs = self.sess.run(self.y_hat, {self.x: next_state})
-        print("reward", reward)
-        print("reward_vec", reward_vecs.shape)
+        #print("reward", reward)
+        #print("reward_vec", reward_vecs.shape)
 
         #print("Reward Vec: ", reward_vecs)
         #print("update terms", np.amax(reward_vecs, 1))

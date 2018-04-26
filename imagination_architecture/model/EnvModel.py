@@ -59,6 +59,7 @@ class EnvModel:
         self.loss = env_loss(self.y, self.y_hat)
         self.train = tf.train.AdamOptimizer(0.001).minimize(self.loss)
         self.saver = tf.train.Saver()
+        self.temp = W1
 
     def update(self, prev_state, action, next_state, reward):
         # print(np.shape(prev_state))
@@ -80,7 +81,7 @@ class EnvironmentNN:
     def __init__(self, state_size, action_size):
         self.state_size = state_size
         self.action_size = action_size
-        self.model = self._build_model()
+        # self.model = self._build_model()
         self.episodes = int(1e100)
         self.max_time = 500
 
@@ -170,7 +171,7 @@ class EnvironmentNN:
         for e in range(self.episodes):
             if e % 100 == 0:
                 self.save("./savefile.h5")
-                print(self.)
+                print(nn.model.temp.eval(session=nn.model.sess))
 
             while True:
                 try:

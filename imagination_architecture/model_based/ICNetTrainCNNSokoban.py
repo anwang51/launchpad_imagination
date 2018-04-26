@@ -140,7 +140,7 @@ class DQNAgent:
             next_states.append(tup[3])
             dones.append(tup[4])
         states = np.array(states)
-        print("shape", states.shape)
+        #print("shape", states.shape)
         #print("actions_1", actions)
         actions = np.eye(self.action_size)[actions]
         #print("actions_2", actions)
@@ -200,7 +200,7 @@ class DQNAgent:
                 # env.render()
                 # Decide action
                 action = agent.act(state)
-                #print(np.shape(state))
+                # print(np.shape(state))
                 #test = np.array([[1,2,3]])
                 #print(np.shape(test))
                 # Advance the game to the next frame based on the action.
@@ -241,7 +241,7 @@ class DQNAgent:
 #     6: player_on_target = [219, 212, 56]
 
 
-agent = DQNAgent(7, 7, 8)
+agent = DQNAgent(112, 112, 8)
 
 def train_agent():
     agent.train()

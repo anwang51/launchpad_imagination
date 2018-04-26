@@ -33,6 +33,7 @@ class ImaginationAgent:
         ret = []
         for paths in next_list:
             ret.extend(paths)
+        return np.array(ret)
 
     def replay(self, batch_size):
         minibatch = random.sample(self.memory, batch_size)
@@ -41,28 +42,36 @@ class ImaginationAgent:
         MF_outputs = []
         actions = []
         rewards = []
-        next_paths = []
+        next_paths_list_list = []
         next_MF_outputs = []
         dones = []
         for tup in minibatch:
-            paths = tup[0][0]
-            paths_list_list.append(paths)
-            MF_outputs.append(tup[0][1])
+            if(isinstance(tup[0], tuple)):
+                paths_list_list.append(tup[0][0])
+                MF_outputs.append(tup[0][1])
+                next_paths_list_list.append(tup[3][0])
+                next_MF_outputs.append(tup[3][1])
+            else:
+                paths_list = get_rollout(tup[0])
+                paths_list_list.append(paths_list)
+                next_paths_list = get_rollout(tup[1])
+                next_paths_list_list.append(next_paths_list)
+
             actions.append(tup[1])
             rewards.append(tup[2])
-            next_states.append(tup[3][0])
-            next_MF_outputs.append(tup[3][1])
             dones.append(tup[4])
-        states = np.array(states)
+        state_path = format_paths(paths_list_list)
+        MF_outputs = np.array(MF_outputs)
         #print("actions_1", actions)
         actions = np.eye(self.action_size)[actions]
         #print("actions_2", actions)
         rewards = np.array(rewards)
-        next_states = np.array(next_states)
+        next_state_path = format_paths(next_paths_list_list)
+        next_MF_outputs = np.array(next_MF_outputs)
         dones = np.array(dones)
         #print("states", states, "actions", actions, "rewards", rewards, "next_states", next_states)
         #print("rewards", rewards)
-        self.model.update(states, actions, rewards, next_states, dones)
+        self.model.update(state_path, MF_outputs, actions, rewards, next_state_path, next_MF_outputs, dones)
 
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay

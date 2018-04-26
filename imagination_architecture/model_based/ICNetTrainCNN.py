@@ -3,8 +3,8 @@ from collections import deque
 import numpy as np
 import random
 import gym
-import gym_sokoban
 from math import log
+import math
 
 record = open("performance", "w")
 savefile = "./savefile.h5"
@@ -16,59 +16,59 @@ gamma = 0.9
 class ICNet:
     def __init__(self, sess, input_height, input_width, action_num):
         self.sess = sess
-        with tf.device("/gpu:0"):
-            input_layer = tf.placeholder("float32", [-1, input_height, input_width, 3])
-            # Convolutional Layer #1
-            conv1 = tf.layers.conv2d(
-            inputs=input_layer,
-            filters=32,
-            kernel_size=[3, 3],
-            padding="same",
-            activation=tf.nn.relu)
+        #with tf.device("/gpu:0"):
+        self.x = tf.placeholder("float32", [None, input_height, input_width, 3])
+        # Convolutional Layer #1
+        conv1 = tf.layers.conv2d(
+        inputs=self.x,
+        filters=32,
+        kernel_size=[3, 3],
+        padding="same",
+        activation=tf.nn.relu)
 
-            # Pooling Layer #1
-            pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2)
-            c1height = ceil(input_height / 2)
-            c1width = ceil(input_width / 2)
+        # Pooling Layer #1
+        pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2)
+        c1height = math.ceil(input_height / 2)
+        c1width = math.ceil(input_width / 2)
 
-            # Convolutional Layer #2 and Pooling Layer #2
-            conv2 = tf.layers.conv2d(
-            inputs=pool1,
-            filters=64,
-            kernel_size=[3, 3],
-            padding="same",
-            activation=tf.nn.relu)
-            pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
+        # Convolutional Layer #2 and Pooling Layer #2
+        conv2 = tf.layers.conv2d(
+        inputs=pool1,
+        filters=64,
+        kernel_size=[3, 3],
+        padding="same",
+        activation=tf.nn.relu)
+        pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
 
-            c2height = ceil(c1height / 2)
-            c2width = ceil(c1width / 2)
+        c2height = math.ceil(c1height / 2)
+        c2width = math.ceil(c1width / 2)
 
-            # Convolutional Layer #2 and Pooling Layer #2
-            conv3 = tf.layers.conv2d(
-            inputs=pool3,
-            filters=64,
-            kernel_size=[3, 3],
-            padding="same",
-            activation=tf.nn.relu)
-            pool3 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
+        # Convolutional Layer #2 and Pooling Layer #2
+        conv3 = tf.layers.conv2d(
+        inputs=pool2,
+        filters=64,
+        kernel_size=[3, 3],
+        padding="same",
+        activation=tf.nn.relu)
+        pool3 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
 
-            c3height = ceil(c2height / 2)
-            c3width = ceil(c2width / 2)
-            # Dense Layer
-            pool3_flat = tf.reshape(pool3, [-1, c3width*c3height * 64])
+        c3height = math.ceil(c2height / 2)
+        c3width = math.ceil(c2width / 2)
+        # Dense Layer
+        pool3_flat = tf.reshape(pool3, [-1, c3width*c3height * 64 * 4])
 
 
-            W1 = tf.Variable(tf.random_uniform([input_size, 128], 0, 1))
-            b1 = tf.Variable(tf.random_uniform([128], 0, 1))
+        W1 = tf.Variable(tf.random_uniform([c3width*c3height * 64 * 4, action_num], 0, 1))
+        b1 = tf.Variable(tf.random_uniform([action_num], 0, 1))
 
-            self.y_hat = tf.nn.elu(tf.matmul(pool3_flat, W1)+b1)
+        self.y_hat = tf.nn.elu(tf.matmul(pool3_flat, W1)+b1)
 
-            #self.y = tf.placeholder("float", [None, action_num])
-            self.q_val = tf.placeholder("float32", [None]) #Proper q-vals as calculated by the bellman equation
-            self.actions = tf.placeholder("float32", [None, action_num]) #Actions stored as one-hot vectors
-            q_val_hat = tf.reduce_sum(tf.multiply(self.y_hat, self.actions), 1) #The q-vals for the actions selected in game
-            #loss = tf.reduce_sum(tf.square(self.q_val - q_val_hat))
-            loss = tf.losses.mean_squared_error(self.q_val, q_val_hat)
+        #self.y = tf.placeholder("float", [None, action_num])
+        self.q_val = tf.placeholder("float32", [None]) #Proper q-vals as calculated by the bellman equation
+        self.actions = tf.placeholder("float32", [None, action_num]) #Actions stored as one-hot vectors
+        q_val_hat = tf.reduce_sum(tf.multiply(self.y_hat, self.actions), 1) #The q-vals for the actions selected in game
+        #loss = tf.reduce_sum(tf.square(self.q_val - q_val_hat))
+        loss = tf.losses.mean_squared_error(self.q_val, q_val_hat)
         self.train = tf.train.AdamOptimizer(0.001).minimize(loss)
         self.saver = tf.train.Saver()
 
@@ -76,6 +76,9 @@ class ICNet:
         #print("next_state", next_state)
         #print("rewards", reward)
         reward_vecs = self.sess.run(self.y_hat, {self.x: next_state})
+        print("reward", reward)
+        print("reward_vec", reward_vecs.shape)
+
         #print("Reward Vec: ", reward_vecs)
         #print("update terms", np.amax(reward_vecs, 1))
         q_vals = reward + gamma*np.amax(reward_vecs, 1)*(1-done)
@@ -95,8 +98,9 @@ class ICNet:
 
 # Deep Q-learning Agent
 class DQNAgent:
-    def __init__(self, state_size, action_size):
-        self.state_size = state_size
+    def __init__(self, state_width, state_height, action_size):
+        self.state_width = state_width
+        self.state_height = state_height
         self.action_size = action_size
         self.memory = deque(maxlen=2000)
         self.epsilon = 0.2  # exploration rate
@@ -109,7 +113,7 @@ class DQNAgent:
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
         session = tf.Session()
-        model = ICNet(session, self.state_size, self.action_size)
+        model = ICNet(session, self.state_height, self.state_width, self.action_size)
         return model
 
     def remember(self, state, action, reward, next_state, done):
@@ -118,7 +122,7 @@ class DQNAgent:
     def act(self, state):
         if np.random.rand() <= self.epsilon:
             return random.randrange(self.action_size)
-        act_values = self.model.action(state)
+        act_values = self.model.action(np.array([state]))
         return act_values  # returns action
 
     def replay(self, batch_size):
@@ -129,12 +133,13 @@ class DQNAgent:
         next_states = []
         dones = []
         for tup in minibatch:
-            states.append(tup[0][0])
+            states.append(tup[0])
             actions.append(tup[1])
             rewards.append(tup[2])
-            next_states.append(tup[3][0])
+            next_states.append(tup[3])
             dones.append(tup[4])
         states = np.array(states)
+        print("shape", states.shape)
         #print("actions_1", actions)
         actions = np.eye(self.action_size)[actions]
         #print("actions_2", actions)
@@ -156,8 +161,8 @@ class DQNAgent:
 
     # Should be def train(self, agent_action)
     def train(self):
-        env = gym.make('TinyWorld-Sokoban-small-v0')
-        print("env stuff", env.observation_space, env.action_space)
+        env = gym.make('CartPole-v1')
+        #print("env stuff", env.observation_space, env.action_space)
         init = tf.global_variables_initializer()
         self.model.sess.run(init)
         epis = 0
@@ -167,7 +172,8 @@ class DQNAgent:
             # reset state in the beginning of each game
             while True:
                 try:
-                    state = env.reset()
+                    env.reset()
+                    state = env.render(mode='rgb_array')
                 except RuntimeWarning:
                     print("RuntimeWarning caught: retrying")
                     continue
@@ -176,10 +182,11 @@ class DQNAgent:
                     continue
                 else:
                     break
-            state = compress(state)
+
             #print("shape: ", np.shape(state))
             #print("shape0: ", np.shape(state[0]))
-            state = np.reshape(state, [1, self.state_size])
+            state = env.render(mode='rgb_array')
+            print(state.shape)
             #print("outside")
             #print("after reshape: ", state)
             # time_t represents each frame of the game
@@ -197,10 +204,9 @@ class DQNAgent:
                 #print(np.shape(test))
                 # Advance the game to the next frame based on the action.
                 # Reward is 1 for every frame the pole survived
-                next_state, reward, done, _ = env.step(action)
+                _, reward, done, _ = env.step(action)
+                next_state = env.render(mode='rgb_array')
                 performance_score += reward
-                next_state = compress(next_state)
-                next_state = np.reshape(next_state, [1, self.state_size])
                 # Remember the previous state, action, reward, and done
                 agent.remember(state, action, reward, next_state, done)
                 # make next_state the new current state for the next frame.
@@ -233,30 +239,8 @@ class DQNAgent:
 #     5: player = [160, 212, 56]
 #     6: player_on_target = [219, 212, 56]
 
-def compress(state):
-    new_state = []
-    for block in state:
-        temp = []
-        for arr in block:
-            if arr[0] == 0:
-                temp.append(0)
-            elif arr[0] == 243:
-                temp.append(1)
-            elif arr[0] == 254:
-                if arr[1] == 126:
-                    temp.append(2)
-                if arr[1] == 95:
-                    temp.append(3)
-            elif arr[0] == 142:
-                temp.append(4)
-            elif arr[0] == 160:
-                temp.append(5) 
-            elif arr[0] == 219:
-                temp.append(6)   
-        new_state.append(temp)  
-    return np.array(new_state)
 
-agent = DQNAgent(49,8)
+agent = DQNAgent(1200, 800, 2)
 
 def train_agent():
     agent.train()

@@ -84,11 +84,14 @@ class EnvironmentNN:
         self.episodes = int(1e100)
         self.max_time = 500
 
+        self.init = tf.global_variables_initializer()
+
     def _build_model(self):
         session = tf.Session()
         return EnvModel(session, self.state_size, self.action_size)
 
     def load(self, name):
+        self.model.sess.run(self.init)
         self.model.saver.restore(self.model.sess, name)
 
     def save(self, name):
@@ -161,12 +164,13 @@ class EnvironmentNN:
                 continue
             else:
                 break
-        init = tf.global_variables_initializer()
-        self.model.sess.run(init)
+
+        self.model.sess.run(self.init)
 
         for e in range(self.episodes):
-            if e % 100:
+            if e % 100 == 0:
                 self.save("./savefile.h5")
+                print(self.)
 
             while True:
                 try:
@@ -268,12 +272,7 @@ def compress(state):
     new_state = new_state.flatten()
     return new_state
 
-
 nn = EnvironmentNN(state_size, action_size)
 
 def load_agent():
     nn.load(savefile)
-
-if __name__ == "__main__":
-    nn.train()
-    nn.verify()

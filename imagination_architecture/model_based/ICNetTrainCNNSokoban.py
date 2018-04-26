@@ -5,12 +5,13 @@ import random
 import gym
 from math import log
 import math
+import gym_sokoban
 
 record = open("performance", "w")
 savefile = "./savefile.h5"
 
 # POLE-SPECIFIC
-max_time = 500
+# max_time = 500
 
 gamma = 0.9
 class ICNet:
@@ -18,24 +19,23 @@ class ICNet:
         self.sess = sess
         #with tf.device("/gpu:0"):
         self.x = tf.placeholder("float32", [None, input_height, input_width, 3])
-        layer1 = tf.image.resize_images(self.x, [80, 120])
         # Convolutional Layer #1
         conv1 = tf.layers.conv2d(
-        inputs=layer1,
-        filters=16,
+        inputs=self.x,
+        filters=32,
         kernel_size=[3, 3],
         padding="same",
         activation=tf.nn.relu)
 
         # Pooling Layer #1
         pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2)
-        c1height = math.ceil(80 / 2)
-        c1width = math.ceil(120 / 2)
+        c1height = math.ceil(input_height / 2)
+        c1width = math.ceil(input_width / 2)
 
         # Convolutional Layer #2 and Pooling Layer #2
         conv2 = tf.layers.conv2d(
         inputs=pool1,
-        filters=32,
+        filters=64,
         kernel_size=[3, 3],
         padding="same",
         activation=tf.nn.relu)
@@ -47,7 +47,7 @@ class ICNet:
         # Convolutional Layer #2 and Pooling Layer #2
         conv3 = tf.layers.conv2d(
         inputs=pool2,
-        filters=32,
+        filters=64,
         kernel_size=[3, 3],
         padding="same",
         activation=tf.nn.relu)
@@ -56,10 +56,10 @@ class ICNet:
         c3height = math.ceil(c2height / 2)
         c3width = math.ceil(c2width / 2)
         # Dense Layer
-        pool3_flat = tf.reshape(pool3, [-1, c3width*c3height * 32 * 4])
+        pool3_flat = tf.reshape(pool3, [-1, c3width*c3height * 64 * 4])
 
 
-        W1 = tf.Variable(tf.random_uniform([c3width*c3height * 32 * 4, action_num], 0, 1))
+        W1 = tf.Variable(tf.random_uniform([c3width*c3height * 64 * 4, action_num], 0, 1))
         b1 = tf.Variable(tf.random_uniform([action_num], 0, 1))
 
         self.y_hat = tf.nn.elu(tf.matmul(pool3_flat, W1)+b1)
@@ -77,8 +77,8 @@ class ICNet:
         #print("next_state", next_state)
         #print("rewards", reward)
         reward_vecs = self.sess.run(self.y_hat, {self.x: next_state})
-        #print("reward", reward)
-        #print("reward_vec", reward_vecs.shape)
+        print("reward", reward)
+        print("reward_vec", reward_vecs.shape)
 
         #print("Reward Vec: ", reward_vecs)
         #print("update terms", np.amax(reward_vecs, 1))
@@ -104,7 +104,7 @@ class DQNAgent:
         self.state_height = state_height
         self.action_size = action_size
         self.memory = deque(maxlen=2000)
-        self.epsilon = 1  # exploration rate
+        self.epsilon = 0.2  # exploration rate
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
         self.model = self._build_model()
@@ -162,7 +162,7 @@ class DQNAgent:
 
     # Should be def train(self, agent_action)
     def train(self):
-        env = gym.make('CartPole-v1')
+        env = gym.make('TinyWorld-Sokoban-small-v0')
         #print("env stuff", env.observation_space, env.action_space)
         init = tf.global_variables_initializer()
         self.model.sess.run(init)
@@ -208,8 +208,6 @@ class DQNAgent:
                 _, reward, done, _ = env.step(action)
                 next_state = env.render(mode='rgb_array')
                 performance_score += reward
-                if done:
-                    reward = -2
                 # Remember the previous state, action, reward, and done
                 agent.remember(state, action, reward, next_state, done)
                 # make next_state the new current state for the next frame.
@@ -243,7 +241,7 @@ class DQNAgent:
 #     6: player_on_target = [219, 212, 56]
 
 
-agent = DQNAgent(1200, 800, 2)
+agent = DQNAgent(7, 7, 8)
 
 def train_agent():
     agent.train()

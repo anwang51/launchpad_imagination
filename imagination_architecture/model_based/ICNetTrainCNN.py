@@ -17,24 +17,25 @@ class ICNet:
     def __init__(self, sess, input_height, input_width, action_num):
         self.sess = sess
         #with tf.device("/gpu:0"):
-        self.x = tf.placeholder("float32", [None, input_height, input_width, 3])
+        self.x = tf.placeholder("float32", [None, input_height, input_width, 6])
+        layer1 = tf.image.resize_images(self.x, [80, 120])
         # Convolutional Layer #1
         conv1 = tf.layers.conv2d(
-        inputs=self.x,
-        filters=32,
+        inputs=layer1,
+        filters=16,
         kernel_size=[3, 3],
         padding="same",
         activation=tf.nn.relu)
 
         # Pooling Layer #1
         pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2)
-        c1height = math.ceil(input_height / 2)
-        c1width = math.ceil(input_width / 2)
+        c1height = math.ceil(80 / 2)
+        c1width = math.ceil(120 / 2)
 
         # Convolutional Layer #2 and Pooling Layer #2
         conv2 = tf.layers.conv2d(
         inputs=pool1,
-        filters=64,
+        filters=32,
         kernel_size=[3, 3],
         padding="same",
         activation=tf.nn.relu)
@@ -46,7 +47,7 @@ class ICNet:
         # Convolutional Layer #2 and Pooling Layer #2
         conv3 = tf.layers.conv2d(
         inputs=pool2,
-        filters=64,
+        filters=32,
         kernel_size=[3, 3],
         padding="same",
         activation=tf.nn.relu)
@@ -55,10 +56,10 @@ class ICNet:
         c3height = math.ceil(c2height / 2)
         c3width = math.ceil(c2width / 2)
         # Dense Layer
-        pool3_flat = tf.reshape(pool3, [-1, c3width*c3height * 64 * 4])
+        pool3_flat = tf.reshape(pool3, [-1, c3width*c3height * 32 * 4])
 
 
-        W1 = tf.Variable(tf.random_uniform([c3width*c3height * 64 * 4, action_num], 0, 1))
+        W1 = tf.Variable(tf.random_uniform([c3width*c3height * 32 * 4, action_num], 0, 1))
         b1 = tf.Variable(tf.random_uniform([action_num], 0, 1))
 
         self.y_hat = tf.nn.elu(tf.matmul(pool3_flat, W1)+b1)
@@ -76,8 +77,8 @@ class ICNet:
         #print("next_state", next_state)
         #print("rewards", reward)
         reward_vecs = self.sess.run(self.y_hat, {self.x: next_state})
-        print("reward", reward)
-        print("reward_vec", reward_vecs.shape)
+        #print("reward", reward)
+        #print("reward_vec", reward_vecs.shape)
 
         #print("Reward Vec: ", reward_vecs)
         #print("update terms", np.amax(reward_vecs, 1))
@@ -103,7 +104,7 @@ class DQNAgent:
         self.state_height = state_height
         self.action_size = action_size
         self.memory = deque(maxlen=2000)
-        self.epsilon = 0.2  # exploration rate
+        self.epsilon = 1  # exploration rate
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
         self.model = self._build_model()
@@ -185,8 +186,9 @@ class DQNAgent:
 
             #print("shape: ", np.shape(state))
             #print("shape0: ", np.shape(state[0]))
+            prev_state = None
             state = env.render(mode='rgb_array')
-            print(state.shape)
+            #print(state.shape)
             #print("outside")
             #print("after reshape: ", state)
             # time_t represents each frame of the game
@@ -198,7 +200,10 @@ class DQNAgent:
                 # turn this on if you want to render
                 # env.render()
                 # Decide action
-                action = agent.act(state)
+                if(prev_state is None):
+                    action = 0
+                else:
+                    action = agent.act(np.concatenate([prev_state, state], 2))
                 #print(np.shape(state))
                 #test = np.array([[1,2,3]])
                 #print(np.shape(test))
@@ -207,9 +212,16 @@ class DQNAgent:
                 _, reward, done, _ = env.step(action)
                 next_state = env.render(mode='rgb_array')
                 performance_score += reward
+                if done:
+                    reward = -2
                 # Remember the previous state, action, reward, and done
-                agent.remember(state, action, reward, next_state, done)
+                if(prev_state is not None):
+                    first = np.concatenate([prev_state, state], 2)
+                    following = np.concatenate([state, next_state], 2)
+                    #print("first shape:", first.shape)
+                    agent.remember(first, action, reward, following, done)
                 # make next_state the new current state for the next frame.
+                prev_state = state
                 state = next_state
                 # done becomes True when the game ends
                 # ex) The agent drops the pole
@@ -227,7 +239,8 @@ class DQNAgent:
             num_mem = len(agent.memory)
             if num_mem > 32:
                 num_mem = 32
-            agent.replay(num_mem)
+            for i in range(12):
+                agent.replay(num_mem)
             epis += 1
         agent.model.save_model("tfmodel_weights.h5")
 

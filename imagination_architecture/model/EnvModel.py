@@ -3,6 +3,7 @@ import gym
 import gym_sokoban
 import numpy as np
 import random
+import os
 
 state_size = 49
 action_size = 8
@@ -36,29 +37,41 @@ def one_hot(arr, dim):
         out.append(temp)
     return np.array(out)
 
-class EnvModel:
-    def __init__(self, sess, state_size, action_size):
-        self.sess = sess
-        self.input_size = state_size + action_size
-        self.output_size = state_size*7 + 1
-        self.x = tf.placeholder("float32", [None, self.input_size])
-        W1 = tf.Variable(tf.random_uniform([self.input_size, 600], 0, 1))
-        b1 = tf.Variable(tf.random_uniform([600], 0, 1))
-        l1 = tf.nn.elu(tf.matmul(self.x, W1)+b1)
+class EnvNN:
+    def __init__(self, state_size, action_size):
+        def sub_init():
+            config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)
+            self.sess = tf.Session(config=config)
+            self.input_size = state_size + action_size
+            self.output_size = state_size*7 + 1
+            self.x = tf.placeholder("float32", [None, self.input_size])
+            W1 = tf.Variable(tf.random_uniform([self.input_size, 600], 0, 1))
+            b1 = tf.Variable(tf.random_uniform([600], 0, 1))
+            l1 = tf.nn.elu(tf.matmul(self.x, W1)+b1)
 
-        W2 = tf.Variable(tf.random_uniform([600, 600], 0, 1))
-        b2 = tf.Variable(tf.random_uniform([600], 0, 1))
-        l2 = tf.nn.elu(tf.matmul(l1, W2)+b2)
+            W2 = tf.Variable(tf.random_uniform([600, 600], 0, 1))
+            b2 = tf.Variable(tf.random_uniform([600], 0, 1))
+            l2 = tf.nn.elu(tf.matmul(l1, W2)+b2)
 
-        W3 = tf.Variable(tf.random_uniform([600, self.output_size], 0, 1))
-        b3 = tf.Variable(tf.random_uniform([self.output_size], 0, 1))
-        self.y_hat = tf.nn.elu(tf.matmul(l2, W3)+b3)
+            W3 = tf.Variable(tf.random_uniform([600, self.output_size], 0, 1))
+            b3 = tf.Variable(tf.random_uniform([self.output_size], 0, 1))
+            self.y_hat = tf.nn.elu(tf.matmul(l2, W3)+b3)
 
-        self.y = tf.placeholder("float32", [None, self.output_size]) 
-        # loss = tf.losses.mean_squared_error(self.y, self.y_hat)
-        self.loss = env_loss(self.y, self.y_hat)
-        self.train = tf.train.AdamOptimizer(0.001).minimize(self.loss)
-        self.saver = tf.train.Saver()
+            self.y = tf.placeholder("float32", [None, self.output_size]) 
+            # loss = tf.losses.mean_squared_error(self.y, self.y_hat)
+            self.loss = env_loss(self.y, self.y_hat)
+            self.train = tf.train.AdamOptimizer(0.001).minimize(self.loss)
+            self.saver = tf.train.Saver(max_to_keep = 5, keep_checkpoint_every_n_hours = 1)
+            self.sess.run(tf.global_variables_initializer())
+            self.temp = W1
+
+        self.use_cpu = False
+        if self.use_cpu:
+            with tf.device('/cpu:0'):
+                sub_init()
+        else:
+            sub_init()
+            
 
     def update(self, prev_state, action, next_state, reward):
         # print(np.shape(prev_state))
@@ -76,23 +89,33 @@ class EnvModel:
         reward = reward_vec[len(reward_vec):]
         return state, reward
 
-class EnvironmentNN:
+class Environment:
     def __init__(self, state_size, action_size):
         self.state_size = state_size
         self.action_size = action_size
-        self.model = self._build_model()
         self.episodes = int(1e100)
         self.max_time = 500
+        self.model = self._build_model()
+        self.init = tf.global_variables_initializer()
+        self.checkpoint_dir = './ENVcheckpoints/'
 
     def _build_model(self):
-        session = tf.Session()
-        return EnvModel(session, self.state_size, self.action_size)
+        tf.reset_default_graph()
+        return EnvNN(self.state_size, self.action_size)
 
-    def load(self, name):
-        self.model.saver.restore(self.model.sess, name)
+    def restore_session(self):
+        global_step = 0
+        if not os.path.exists(self.checkpoint_dir):
+            raise IOError(self.checkpoint_dir + ' does not exist.')
+        else:
+            path = tf.train.get_checkpoint_state(self.checkpoint_dir)
+            if path is None:
+                raise IOError('No checkpoint to restore in ' + self.checkpoint_dir)
+            else:
+                self.model.saver.restore(self.model.sess, path.model_checkpoint_path)
+                global_step = int(path.model_checkpoint_path.split('-')[-1])
 
-    def save(self, name):
-        self.model.saver.save(self.model.sess, name)
+        return global_step
 
     def verify(self):
         while True:
@@ -149,7 +172,10 @@ class EnvironmentNN:
             t += 1
 
     # Should be def train(self, agent_action)
-    def train(self):
+    def train(self, restore_session=False):
+        if restore_session:
+            self.restore_session()
+
         while True:
             try:
                 env = gym.make('TinyWorld-Sokoban-small-v0')
@@ -161,12 +187,11 @@ class EnvironmentNN:
                 continue
             else:
                 break
-        init = tf.global_variables_initializer()
-        self.model.sess.run(init)
 
         for e in range(self.episodes):
-            if e % 100:
-                self.save("./savefile.h5")
+            if e % 10 == 0:
+                self.model.saver.save(self.model.sess, self.checkpoint_dir+'model', global_step=e)
+                print('Model {} saved'.format(e))
 
             while True:
                 try:
@@ -268,12 +293,3 @@ def compress(state):
     new_state = new_state.flatten()
     return new_state
 
-
-nn = EnvironmentNN(state_size, action_size)
-
-def load_agent():
-    nn.load(savefile)
-
-if __name__ == "__main__":
-    nn.train()
-    nn.verify()

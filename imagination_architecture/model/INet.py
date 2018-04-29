@@ -89,7 +89,7 @@ class INet:
                 # perform the rollouts  
                 # train the core's DQN in the same way (not now bc we're using same DQN)
                 # update LSTM
-                icore = ImaginationCore.ImaginationCore(dqn, env, input_width, input_height, action_size)
+                icore = ImaginationCore.ImaginationCore(dqn, state, input_width, input_height, action_size)
                 rollouts = icore.rollout(state)
 
                 lstm_out = self.act(rollouts, dqn_predict)

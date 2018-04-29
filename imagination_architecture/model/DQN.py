@@ -6,8 +6,8 @@ import gym
 from math import log
 import math
 
-record = open("performance", "w")
-savefile = "./savefile.h5"
+# record = open("performance", "w")
+# savefile = "./savefile.h5"
 
 # POLE-SPECIFIC
 max_time = 500
@@ -154,15 +154,15 @@ class DQNAgent:
         if restore_session:
             self.restore_session()
 
-        env = gym.make('CartPole-v1')
+        env = gym.make('Breakout-v0')
         epis = 0
         f = open("performance_timeseries", "a")
         # Iterate the game
         while True:
             while True:
                 try:
-                    env.reset()
-                    state = env.render(mode='rgb_array')
+                    state = env.reset()
+                    #state = env.render(mode='rgb_array')
                 except RuntimeWarning:
                     print("RuntimeWarning caught: retrying")
                     continue
@@ -171,8 +171,8 @@ class DQNAgent:
                     continue
                 else:
                     break
-            state = env.render(mode='rgb_array')
-            print(state.shape)
+            # state = env.render(mode='rgb_array')
+            # print(state.shape)
             # time_t represents each frame of the game
             # Our goal is to keep the pole upright as long as possible until score of max_time
             # the more time_t the more score
@@ -188,8 +188,8 @@ class DQNAgent:
                 #print(np.shape(test))
                 # Advance the game to the next frame based on the action.
                 # Reward is 1 for every frame the pole survived
-                _, reward, done, _ = env.step(action)
-                next_state = env.render(mode='rgb_array')
+                next_state, reward, done, _ = env.step(action)
+                #next_state = env.render(mode='rgb_array')
                 performance_score += reward
                 if done:
                     reward = -2
@@ -200,9 +200,9 @@ class DQNAgent:
                 # done becomes True when the game ends
                 # ex) The agent drops the pole
                 if done:
-                    # # print the score and break out of the loop
-                    # print("episode: {}/{}, score: {}"
-                    #       .format(e, episodes, reward))
+                    # print the score and break out of the loop
+                    print("episode: {}/{}, score: {}"
+                          .format(epis, episodes, reward))
                     break
             if epis % 1000 == 0:
                 self.model.saver.save(self.model.sess, './DQNcheckpoints/'+'model')

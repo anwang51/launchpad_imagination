@@ -70,6 +70,7 @@ class EnvNN:
             with tf.device('/cpu:0'):
                 sub_init()
         else:
+            with tf.device('/device:GPU:0')
             sub_init()
             
 

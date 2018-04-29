@@ -17,8 +17,8 @@ class ICNet:
     def __init__(self, sess, input_height, input_width, action_num):
         self.sess = sess
         #with tf.device("/gpu:0"):
-        self.x = tf.placeholder("float32", [None, input_height, input_width, 3])
-        layer1 = tf.image.resize_images(self.x, [32, 42])
+        self.x = tf.placeholder("float32", [None, input_height, input_width, 6])
+        layer1 = tf.image.resize_images(self.x, [32, 42]) / 255.0
         # Convolutional Layer #1
         conv1 = tf.layers.conv2d(
         inputs=layer1,
@@ -103,8 +103,8 @@ class DQNAgent:
         self.state_width = state_width
         self.state_height = state_height
         self.action_size = action_size
-        self.memory = deque(maxlen=2000)
-        self.epsilon = 0.4  # exploration rate
+        self.memory = deque(maxlen=5000)
+        self.epsilon = 1  # exploration rate
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
         self.model = self._build_model()
@@ -199,7 +199,7 @@ class DQNAgent:
             done = False
             while not done:
                 # turn this on if you want to render
-                # env.render()
+                env.render()
                 # Decide action
                 action = agent.act(state)
                 #print(np.shape(state))
@@ -211,7 +211,7 @@ class DQNAgent:
                 next_state = env.render(mode='rgb_array')
                 performance_score += reward
                 if done:
-                    reward = -2
+                    reward = -1
                 # Remember the previous state, action, reward, and done
                 agent.remember(state, action, reward, next_state, done)
                 # make next_state the new current state for the next frame.

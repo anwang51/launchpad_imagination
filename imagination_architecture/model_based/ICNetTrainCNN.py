@@ -17,7 +17,7 @@ class ICNet:
     def __init__(self, sess, input_height, input_width, action_num):
         self.sess = sess
         #with tf.device("/gpu:0"):
-        self.x = tf.placeholder("float32", [None, input_height, input_width, 3])
+        self.x = tf.placeholder("float32", [None, input_height, input_width, 6])
         layer1 = tf.image.resize_images(self.x, [80, 120])
         # Convolutional Layer #1
         conv1 = tf.layers.conv2d(
@@ -186,8 +186,9 @@ class DQNAgent:
 
             #print("shape: ", np.shape(state))
             #print("shape0: ", np.shape(state[0]))
+            prev_state = None
             state = env.render(mode='rgb_array')
-            print(state.shape)
+            #print(state.shape)
             #print("outside")
             #print("after reshape: ", state)
             # time_t represents each frame of the game
@@ -199,7 +200,10 @@ class DQNAgent:
                 # turn this on if you want to render
                 # env.render()
                 # Decide action
-                action = agent.act(state)
+                if(prev_state is None):
+                    action = 0
+                else:
+                    action = agent.act(np.concatenate([prev_state, state], 2))
                 #print(np.shape(state))
                 #test = np.array([[1,2,3]])
                 #print(np.shape(test))
@@ -211,8 +215,13 @@ class DQNAgent:
                 if done:
                     reward = -2
                 # Remember the previous state, action, reward, and done
-                agent.remember(state, action, reward, next_state, done)
+                if(prev_state is not None):
+                    first = np.concatenate([prev_state, state], 2)
+                    following = np.concatenate([state, next_state], 2)
+                    #print("first shape:", first.shape)
+                    agent.remember(first, action, reward, following, done)
                 # make next_state the new current state for the next frame.
+                prev_state = state
                 state = next_state
                 # done becomes True when the game ends
                 # ex) The agent drops the pole

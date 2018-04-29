@@ -39,38 +39,38 @@ def one_hot(arr, dim):
 
 class EnvNN:
     def __init__(self, state_size, action_size):
-        self.use_cpu = False
-        if self.use_cpu:
-            device = '/cpu:0'
-        else:
-            device = '/gpu:0'
+        # self.use_cpu = False
+        # if self.use_cpu:
+        #     device = '/cpu:0'
+        # else:
+        #     device = '/gpu:0'
 
-        with tf.device(device):
-            config = tf.ConfigProto(allow_soft_placement = True)
-            self.sess = tf.Session(config=config)
-            self.input_size = state_size + action_size
-            self.output_size = state_size*7 + 1
-            self.x = tf.placeholder("float32", [None, self.input_size])
-            W1 = tf.Variable(tf.random_uniform([self.input_size, 600], 0, 1))
-            b1 = tf.Variable(tf.random_uniform([600], 0, 1))
-            l1 = tf.nn.elu(tf.matmul(self.x, W1)+b1)
+        # with tf.device(device):
+        config = tf.ConfigProto(allow_soft_placement = True)
+        self.sess = tf.Session(config=config)
+        self.input_size = state_size + action_size
+        self.output_size = state_size*7 + 1
+        self.x = tf.placeholder("float32", [None, self.input_size])
+        W1 = tf.Variable(tf.random_uniform([self.input_size, 600], 0, 1))
+        b1 = tf.Variable(tf.random_uniform([600], 0, 1))
+        l1 = tf.nn.elu(tf.matmul(self.x, W1)+b1)
 
-            W2 = tf.Variable(tf.random_uniform([600, 600], 0, 1))
-            b2 = tf.Variable(tf.random_uniform([600], 0, 1))
-            l2 = tf.nn.elu(tf.matmul(l1, W2)+b2)
+        W2 = tf.Variable(tf.random_uniform([600, 600], 0, 1))
+        b2 = tf.Variable(tf.random_uniform([600], 0, 1))
+        l2 = tf.nn.elu(tf.matmul(l1, W2)+b2)
 
-            W3 = tf.Variable(tf.random_uniform([600, self.output_size], 0, 1))
-            b3 = tf.Variable(tf.random_uniform([self.output_size], 0, 1))
-            self.y_hat = tf.nn.elu(tf.matmul(l2, W3)+b3)
+        W3 = tf.Variable(tf.random_uniform([600, self.output_size], 0, 1))
+        b3 = tf.Variable(tf.random_uniform([self.output_size], 0, 1))
+        self.y_hat = tf.nn.elu(tf.matmul(l2, W3)+b3)
 
-            self.y = tf.placeholder("float32", [None, self.output_size]) 
-            # loss = tf.losses.mean_squared_error(self.y, self.y_hat)
-            self.loss = env_loss(self.y, self.y_hat)
-            self.train = tf.train.AdamOptimizer(0.001).minimize(self.loss)
-            self.saver = tf.train.Saver(max_to_keep = 5, keep_checkpoint_every_n_hours = 1)
-            self.sess = tf.Session()
-            self.sess.run(tf.global_variables_initializer())
-            self.temp = W1
+        self.y = tf.placeholder("float32", [None, self.output_size]) 
+        # loss = tf.losses.mean_squared_error(self.y, self.y_hat)
+        self.loss = env_loss(self.y, self.y_hat)
+        self.train = tf.train.AdamOptimizer(0.001).minimize(self.loss)
+        self.saver = tf.train.Saver(max_to_keep = 5, keep_checkpoint_every_n_hours = 1)
+        self.sess = tf.Session()
+        self.sess.run(tf.global_variables_initializer())
+        self.temp = W1
 
     def update(self, prev_state, action, next_state, reward):
         # print(np.shape(prev_state))

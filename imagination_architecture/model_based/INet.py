@@ -49,4 +49,4 @@ class INet:
 
 if __name__ == "__main__":
 	print("compiling")
-	model = INet(15, 4, 5, 5, 4 tf.Session())
+	model = INet(15, 4, 5, 5, 4, tf.Session())

@@ -6,37 +6,32 @@ import tensorflow as tf
 
 class ImaginationCore:
 
-	def __init__(self, environment_string, state_size, action_size):
+	def __init__(self, agent, env, state_size, action_size):
 		# self.env = EnvironmentModel()
-		self.env = gym.make(environment_string)
+		self.env = copy.deepcopy(env)
 		self.state_size = state_size
 		self.action_size = action_size
-		self.start_state = self.env.reset()
+		self.start_state = self.env.state
 		self.start_state = np.reshape(self.start_state, [1, self.state_size])
-		self.actor = DQNAgent(self.state_size, self.action_size, self.env)
-		init = tf.global_variables_initializer()
-		self.actor.model.sess.run(init)
+		self.actor = agent
 
-	def rollout_single(self, state):
-		action = self.actor.act(state)
-		next_state, reward, done, _ = self.env.step(action)
+	def rollout_single(self, state, action):
+		next_state, reward, done, _ = self.env.step(action) # make sure env outputs pixels, otherwise we're fucked
 		next_state = np.reshape(next_state, [1, self.state_size])
-		return next_state, reward
+		return [next_state, reward]
 
-	def rollout(self, state, depth=3):
-		rw = 0
-		st = state
-		out = [(st, rw)]
-		while depth > 0:
-			st, rw = self.rollout_single(st)
-			print(st)
-			print(np.shape(st))
-			out.append((st, rw))
-			depth -= 1
-		return out
+	def rollout(self, state, depth=5):
+		result = []
+		for i in range(action_size):
+			temp_depth = depth - 1
+			rollout_result = []
+			next_state, reward = self.rollout_single(state, i)
+			rollout_result.append([next_state, reward])
+			while depth > 0:
+				action = self.actor.act(next_state)
+				next_state, reward = self.rollout_single(next_state, action)
+				rollout_result.append([next_state, reward])
+				temp_depth -= 1
+			result.append(rollout_result)
+		return np.array(result)
 
-# Example:
-# im_core = ImaginationCore('Sokoban-small-v0', 37632, 8)
-# print(im_core.start_state)
-# print(np.shape(im_core.start_state))
-# print(im_core.rollout(im_core.start_state))

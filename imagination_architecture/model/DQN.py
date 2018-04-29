@@ -1,4 +1,4 @@
-mport tensorflow as tf
+import tensorflow as tf
 from collections import deque
 import numpy as np
 import random
@@ -13,7 +13,7 @@ savefile = "./savefile.h5"
 max_time = 500
 
 gamma = 0.9
-class ICNet:
+class DQNNet:
     def __init__(self, input_height, input_width, action_num):
         #with tf.device("/gpu:0"):
         self.x = tf.placeholder("float32", [None, input_height, input_width, 3])
@@ -68,7 +68,8 @@ class ICNet:
         self.train = tf.train.AdamOptimizer(0.001).minimize(loss)
         self.saver = tf.train.Saver(max_to_keep = 5, keep_checkpoint_every_n_hours =1)
         self.sess = tf.Session()
-        self.session.run(tf.global_variables_initializer())
+        self.sess.run(tf.global_variables_initializer())
+        self.temp = W1
 
     def update(self, state, action, reward, next_state, done):
         reward_vecs = self.sess.run(self.y_hat, {self.x: next_state})
@@ -98,7 +99,8 @@ class DQNAgent:
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
         #session = tf.Session()
-        model = ICNet(self.state_height, self.state_width, self.action_size)
+        tf.reset_default_graph()
+        model = DQNNet(self.state_height, self.state_width, self.action_size)
         return model
 
     def remember(self, state, action, reward, next_state, done):
@@ -138,23 +140,22 @@ class DQNAgent:
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
-    def restore_session(self, name):
-        path = tf.train.get_checkpoint_state('./checkpoints/')
+    def restore_session(self):
+        path = tf.train.get_checkpoint_state('./DQNcheckpoints/')
         if path is None:
-            raise IOError('No checkpoint to restore in ' + './checkpoints/')
+            raise IOError('No checkpoint to restore in ' + './DQNcheckpoints/')
         else:
             self.model.saver.restore(self.model.sess, path.model_checkpoint_path)
             #global_step = int(path.model_checkpoint_path.split('-')[-1])
-
-    def save(self, name):
-        self.model.saver.save(self.model.sess, name)
+        print(self.model.sess.run(self.model.temp))
 
     # Should be def train(self, agent_action)
-    def train(self):
+    def train(self, restore_session = False):
+        if restore_session:
+            self.restore_session()
+
         env = gym.make('CartPole-v1')
         #print("env stuff", env.observation_space, env.action_space)
-        init = tf.global_variables_initializer()
-        self.model.sess.run(init)
         epis = 0
         f = open("performance_timeseries", "a")
         # Iterate the game
@@ -210,6 +211,10 @@ class DQNAgent:
                     # print("episode: {}/{}, score: {}"
                     #       .format(e, episodes, reward))
                     break
+            if epis % 1000 == 0:
+                self.model.saver.save(self.model.sess, './DQNcheckpoints/'+'model')
+                print('Model {} saved'.format(epis))
+
             out_str = str(performance_score) + " "
             f.write(out_str)
             f.flush()
@@ -221,18 +226,6 @@ class DQNAgent:
                 num_mem = 32
             agent.replay(num_mem)
             epis += 1
-        agent.model.save_model("tfmodel_weights.h5")
 
 
-agent = DQNAgent(1200, 800, 2)
-
-def train_agent():
-    agent.train()
-    agent.save(savefile)
-
-def load_agent():
-    agent.load(savefile)
-
-
-if __name__ == "__main__":
-    train_agent()
+#agent = DQNAgent(600, 400, 2)

@@ -70,7 +70,8 @@ class EnvNN:
             with tf.device('/cpu:0'):
                 sub_init()
         else:
-            sub_init()
+            with tf.device('/device:GPU:1'):
+                sub_init()
             
 
     def update(self, prev_state, action, next_state, reward):

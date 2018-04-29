@@ -174,7 +174,7 @@ class DQNAgent:
             while True:
                 try:
                     env.reset()
-                    state = env.render(mode='rgb_array', show=False)
+                    state = env.render(mode='rgb_array')
                 except RuntimeWarning:
                     print("RuntimeWarning caught: retrying")
                     continue
@@ -186,7 +186,7 @@ class DQNAgent:
 
             #print("shape: ", np.shape(state))
             #print("shape0: ", np.shape(state[0]))
-            state = env.render(mode='rgb_array', show=False)
+            state = env.render(mode='rgb_array')
             print(state.shape)
             #print("outside")
             #print("after reshape: ", state)
@@ -206,7 +206,7 @@ class DQNAgent:
                 # Advance the game to the next frame based on the action.
                 # Reward is 1 for every frame the pole survived
                 _, reward, done, _ = env.step(action)
-                next_state = env.render(mode='rgb_array', show=False)
+                next_state = env.render(mode='rgb_array')
                 performance_score += reward
                 if done:
                     reward = -2

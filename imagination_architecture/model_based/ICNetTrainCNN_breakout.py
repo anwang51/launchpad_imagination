@@ -16,60 +16,60 @@ gamma = 0.9
 class ICNet:
     def __init__(self, sess, input_height, input_width, action_num):
         self.sess = sess
-        with tf.device("/gpu:0"):
-            self.x = tf.placeholder("float32", [None, input_height, input_width, 3])
-            layer1 = tf.image.resize_images(self.x, [32, 42])
-            # Convolutional Layer #1
-            conv1 = tf.layers.conv2d(
-            inputs=layer1,
-            filters=16,
-            kernel_size=[3, 3],
-            padding="same",
-            activation=tf.nn.relu)
+        #with tf.device("/gpu:0"):
+        self.x = tf.placeholder("float32", [None, input_height, input_width, 3])
+        layer1 = tf.image.resize_images(self.x, [32, 42])
+        # Convolutional Layer #1
+        conv1 = tf.layers.conv2d(
+        inputs=layer1,
+        filters=16,
+        kernel_size=[3, 3],
+        padding="same",
+        activation=tf.nn.relu)
 
-            # Pooling Layer #1
-            pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2)
-            c1height = math.ceil(32 / 2)
-            c1width = math.ceil(42 / 2)
+        # Pooling Layer #1
+        pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2)
+        c1height = math.ceil(32 / 2)
+        c1width = math.ceil(42 / 2)
 
-            # Convolutional Layer #2 and Pooling Layer #2
-            conv2 = tf.layers.conv2d(
-            inputs=pool1,
-            filters=32,
-            kernel_size=[3, 3],
-            padding="same",
-            activation=tf.nn.relu)
-            pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
+        # Convolutional Layer #2 and Pooling Layer #2
+        conv2 = tf.layers.conv2d(
+        inputs=pool1,
+        filters=32,
+        kernel_size=[3, 3],
+        padding="same",
+        activation=tf.nn.relu)
+        pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
 
-            c2height = math.ceil(c1height / 2)
-            c2width = math.ceil(c1width / 2)
+        c2height = math.ceil(c1height / 2)
+        c2width = math.ceil(c1width / 2)
 
-            # Convolutional Layer #2 and Pooling Layer #2
-            conv3 = tf.layers.conv2d(
-            inputs=pool2,
-            filters=32,
-            kernel_size=[3, 3],
-            padding="same",
-            activation=tf.nn.relu)
-            pool3 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
+        # Convolutional Layer #2 and Pooling Layer #2
+        conv3 = tf.layers.conv2d(
+        inputs=pool2,
+        filters=32,
+        kernel_size=[3, 3],
+        padding="same",
+        activation=tf.nn.relu)
+        pool3 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
 
-            c3height = math.ceil(c2height / 2)
-            c3width = math.ceil(c2width / 2)
-            # Dense Layer
-            pool3_flat = tf.reshape(pool3, [-1, 2560])
+        c3height = math.ceil(c2height / 2)
+        c3width = math.ceil(c2width / 2)
+        # Dense Layer
+        pool3_flat = tf.contrib.layers.flatten(pool3)
 
 
-            W1 = tf.Variable(tf.random_uniform([2560, action_num], 0, 1))
-            b1 = tf.Variable(tf.random_uniform([action_num], 0, 1))
+        W1 = tf.Variable(tf.random_uniform([2560, action_num], 0, 1))
+        b1 = tf.Variable(tf.random_uniform([action_num], 0, 1))
 
-            self.y_hat = tf.nn.elu(tf.matmul(pool3_flat, W1)+b1)
+        self.y_hat = tf.nn.elu(tf.matmul(pool3_flat, W1)+b1)
 
-            #self.y = tf.placeholder("float", [None, action_num])
-            self.q_val = tf.placeholder("float32", [None]) #Proper q-vals as calculated by the bellman equation
-            self.actions = tf.placeholder("float32", [None, action_num]) #Actions stored as one-hot vectors
-            q_val_hat = tf.reduce_sum(tf.multiply(self.y_hat, self.actions), 1) #The q-vals for the actions selected in game
-            #loss = tf.reduce_sum(tf.square(self.q_val - q_val_hat))
-            loss = tf.losses.mean_squared_error(self.q_val, q_val_hat)
+        #self.y = tf.placeholder("float", [None, action_num])
+        self.q_val = tf.placeholder("float32", [None]) #Proper q-vals as calculated by the bellman equation
+        self.actions = tf.placeholder("float32", [None, action_num]) #Actions stored as one-hot vectors
+        q_val_hat = tf.reduce_sum(tf.multiply(self.y_hat, self.actions), 1) #The q-vals for the actions selected in game
+        #loss = tf.reduce_sum(tf.square(self.q_val - q_val_hat))
+        loss = tf.losses.mean_squared_error(self.q_val, q_val_hat)
         self.train = tf.train.AdamOptimizer(0.001).minimize(loss)
         self.saver = tf.train.Saver()
 
@@ -104,7 +104,7 @@ class DQNAgent:
         self.state_height = state_height
         self.action_size = action_size
         self.memory = deque(maxlen=2000)
-        self.epsilon = 1  # exploration rate
+        self.epsilon = 0.4  # exploration rate
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
         self.model = self._build_model()
@@ -141,7 +141,7 @@ class DQNAgent:
             next_states.append(tup[3])
             dones.append(tup[4])
         states = np.array(states)
-        print("shape", states.shape)
+        #print("shape", states.shape)
         #print("actions_1", actions)
         actions = np.eye(self.action_size)[actions]
         #print("actions_2", actions)
@@ -188,7 +188,8 @@ class DQNAgent:
             #print("shape: ", np.shape(state))
             #print("shape0: ", np.shape(state[0]))
             state = env.render(mode='rgb_array')
-            print(state.shape)
+            #env.render()
+            #print(state.shape)
             #print("outside")
             #print("after reshape: ", state)
             # time_t represents each frame of the game

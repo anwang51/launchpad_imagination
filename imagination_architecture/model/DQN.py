@@ -155,12 +155,10 @@ class DQNAgent:
             self.restore_session()
 
         env = gym.make('CartPole-v1')
-        #print("env stuff", env.observation_space, env.action_space)
         epis = 0
         f = open("performance_timeseries", "a")
         # Iterate the game
         while True:
-            # reset state in the beginning of each game
             while True:
                 try:
                     env.reset()
@@ -173,13 +171,8 @@ class DQNAgent:
                     continue
                 else:
                     break
-
-            #print("shape: ", np.shape(state))
-            #print("shape0: ", np.shape(state[0]))
             state = env.render(mode='rgb_array')
             print(state.shape)
-            #print("outside")
-            #print("after reshape: ", state)
             # time_t represents each frame of the game
             # Our goal is to keep the pole upright as long as possible until score of max_time
             # the more time_t the more score

@@ -6,7 +6,7 @@ import tensorflow as tf
 
 class ImaginationCore:
 
-	def __init__(self, agent, env, input_height, input_width, action_size):
+	def __init__(self, agent, env, input_width, input_height, action_size):
 		# self.env = EnvironmentModel()
 		self.env = copy.deepcopy(env)
 		self.input_height = input_height

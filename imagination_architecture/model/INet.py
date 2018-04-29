@@ -56,28 +56,28 @@ class INet:
         
 
 
-	def train(self, restore_session = False):
-		dqn = DQN.DQNAgent(600, 400, 2)		
-		icore = ImaginationCore.ImaginationCore()
-
+	def train(self, state_size, action_size, restore_session = False):
+		dqn = DQN.DQNAgent(600, 400, action_size)		
+		
 		if restore_session:
             self.restore_session()
 
-		while True:
-            try:
-                state = env.reset()
-            except RuntimeWarning:
-                print("RuntimeWarning caught: retrying")
-                continue
-            except RuntimeError:
-                print("RuntimeError caught: retrying")
-                continue
-            else:
-                break
-
-        done = False
-        e = 0
-        while not done:
+		env = gym.make('CartPole-v1')
+        while True:
+        	while True:
+	            try:
+	                state = env.reset()
+	            except RuntimeWarning:
+	                print("RuntimeWarning caught: retrying")
+	                continue
+	            except RuntimeError:
+	                print("RuntimeError caught: retrying")
+	                continue
+	            else:
+	                break
+	        done = False
+	        e = 0
+	        while not done:
             # MODEL FREE
             # store prediction
             # get the actual interpreter prediction and pick whatever action
@@ -87,10 +87,12 @@ class INet:
             # perform the rollouts  
             # train the core's DQN in the same way
             # update LSTM
-
+            dqn_predict = dqn.action(state)
+            icore = ImaginationCore.ImaginationCore(dqn, env, state_size, action_size)
+            
             # before updating anything, must act
             
- 
+
             e += 1
             print("episode: {}, score: {}".format(e, reward))
 	       	if epis % 1000 == 0:

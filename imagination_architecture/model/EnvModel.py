@@ -45,15 +45,15 @@ class EnvNN:
             self.input_size = state_size + action_size
             self.output_size = state_size*7 + 1
             self.x = tf.placeholder("float32", [None, self.input_size])
-            W1 = tf.Variable(tf.random_uniform([self.input_size, 600], 0, 1))
-            b1 = tf.Variable(tf.random_uniform([600], 0, 1))
+            W1 = tf.Variable(tf.random_uniform([self.input_size, 6000], 0, 1))
+            b1 = tf.Variable(tf.random_uniform([6000], 0, 1))
             l1 = tf.nn.elu(tf.matmul(self.x, W1)+b1)
 
-            W2 = tf.Variable(tf.random_uniform([600, 600], 0, 1))
-            b2 = tf.Variable(tf.random_uniform([600], 0, 1))
+            W2 = tf.Variable(tf.random_uniform([6000, 6000], 0, 1))
+            b2 = tf.Variable(tf.random_uniform([6000], 0, 1))
             l2 = tf.nn.elu(tf.matmul(l1, W2)+b2)
 
-            W3 = tf.Variable(tf.random_uniform([600, self.output_size], 0, 1))
+            W3 = tf.Variable(tf.random_uniform([6000, self.output_size], 0, 1))
             b3 = tf.Variable(tf.random_uniform([self.output_size], 0, 1))
             self.y_hat = tf.nn.elu(tf.matmul(l2, W3)+b3)
 
@@ -70,7 +70,8 @@ class EnvNN:
             with tf.device('/cpu:0'):
                 sub_init()
         else:
-            sub_init()
+            with tf.device('/device:GPU:1'):
+                sub_init()
             
 
     def update(self, prev_state, action, next_state, reward):

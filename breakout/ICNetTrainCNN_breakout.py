@@ -5,6 +5,7 @@ import random
 import gym
 from math import log
 import math
+import sys
 
 record = open("performance", "w")
 savefile = "./savefile.h5"
@@ -38,10 +39,8 @@ class StateProcessor():
         """
         return sess.run(self.output, { self.input_state: state })
 
-
 class ICNet:
-    def __init__(self, sess, input_height, input_width, action_num):
-        self.sess = sess
+    def __init__(self, input_height, input_width, action_num):
         #with tf.device("/gpu:0"):
         self.x = tf.placeholder("float32", [None, 84, 84, 4])
         layer1 = tf.to_float(self.x) / 255.0
@@ -49,7 +48,8 @@ class ICNet:
         conv1 = tf.layers.conv2d(
         inputs=layer1,
         filters=32,
-        kernel_size=[3, 3],
+        kernel_size=[8, 8],
+        strides=(4,4),
         padding="same",
         activation=tf.nn.relu)
 
@@ -57,7 +57,8 @@ class ICNet:
         conv2 = tf.layers.conv2d(
         inputs=conv1,
         filters=64,
-        kernel_size=[3, 3],
+        kernel_size=[4, 4],
+        strides=(2,2),
         padding="same",
         activation=tf.nn.relu)
 
@@ -70,10 +71,10 @@ class ICNet:
         activation=tf.nn.relu)
 
         # Flattening
-        flat = tf.contrib.layers.flatten(conv3)
+        flat = tf.contrib.layers.flatten(conv2)
         
         # Dense Layer 1
-        W1 = tf.Variable(tf.random_uniform([451584, 512], 0, 1))
+        W1 = tf.Variable(tf.random_uniform([7744, 512], 0, 1))
         b1 = tf.Variable(tf.random_uniform([512], 0, 1))
         dense1 = tf.nn.relu(tf.matmul(flat, W1)+b1)
 
@@ -91,6 +92,8 @@ class ICNet:
         loss = tf.losses.mean_squared_error(self.q_val, q_val_hat)
         self.train = tf.train.AdamOptimizer(0.001).minimize(loss)
         self.saver = tf.train.Saver()
+        self.sess = tf.Session()
+        self.sess.run(tf.global_variables_initializer())
 
     def update(self, state, action, reward, next_state, done):
         reward_vecs = self.sess.run(self.y_hat, {self.x: next_state})
@@ -100,8 +103,6 @@ class ICNet:
     def action(self, state):
         reward_vec = self.sess.run(self.y_hat, {self.x: state})
         return np.argmax(reward_vec)
-
-
 
 # Deep Q-learning Agent
 class DQNAgent:
@@ -117,10 +118,12 @@ class DQNAgent:
         self.episodes = 3000
         self.training_result = []
         self.batch_size = 32
+        self.running_average = []
+        self.ravg_size = 20
 
     def _build_model(self):
-        session = tf.Session()
-        model = ICNet(session, self.state_height, self.state_width, self.action_size)
+        tf.reset_default_graph()
+        model = ICNet(self.state_height, self.state_width, self.action_size)
         return model
 
     def remember(self, state, action, reward, next_state, done):
@@ -155,16 +158,23 @@ class DQNAgent:
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
+    def restore_session(self, file_path):
+        path = tf.train.get_checkpoint_state(file_path)
+        if path is None:
+            raise IOError('No checkpoint to restore in ' + './FinalCheckpoints/')
+        else:
+            self.saver.restore(self.sess, path.model_checkpoint_path)
+
     def load(self, name):
         self.model.saver.restore(self.model.sess, name)
 
     def save(self, name):
         self.model.saver.save(self.model.sess, name)
 
-    def train(self):
+    def train(self, file_path=None, restore_session=False):
+        if restore_session:
+            self.restore_session(file_path)
         env = gym.make('Breakout-v0')
-        init = tf.global_variables_initializer()
-        self.model.sess.run(init)
         epis = 0
         f = open("breakout_dqn_performance", "a")
         state_processor = StateProcessor()
@@ -206,6 +216,13 @@ class DQNAgent:
                     t, total_t, epis, float("inf")), end="")
                 t += 1
                 total_t += 1
+            if len(self.running_average) >= self.ravg_size:
+                self.running_average.pop(0)
+            self.running_average.append(performance_score)
+
+            if epis % 200 == 0 and epis == 0:
+                self.model.saver.save(self.model.sess, './breakout_saves/'+'breakout_ep'+str(epis)+"_"+str(performance_score))
+
             sys.stdout.flush()
             out_str = str(performance_score) + " "
             f.write(out_str)

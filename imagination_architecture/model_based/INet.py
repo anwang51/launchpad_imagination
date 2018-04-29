@@ -1,7 +1,9 @@
 import tensorflow as tf
 from tensorflow.contrib import rnn
 import numpy as np
-
+from skimage.transform import rescale, resize, downscale_local_mean
+image_height = 400
+image_width = 600
 class INet:
 	def __init__(self, LSTM_input_size, num_paths, MF_input_size, output_size, path_length, sess):
 		self.sess = sess
@@ -9,13 +11,17 @@ class INet:
 		#lstm_layer = rnn.BasicLSTMCell(LSTM_input_size,forget_bias=1)
 		lstm_layer = rnn.core_rnn_cell.BasicLSTMCell(LSTM_input_size,forget_bias=1)
 		#Batch_size, path_length, LSTM.input_size
-		self._paths = tf.placeholder("float", [None, path_length, LSTM_input_size])
-		unstacked = tf.unstack(self._paths, None, 1)
-		outputs, states = rnn.static_rnn(lstm_layer, unstacked, dtype="float")
-
-		input_matrix = outputs[-1]
-		input_pieces = tf.split(input_matrix, num_paths, 0)
-		self._MF_output = tf.placeholder("float", [None, MF_input_size])
+		self._paths = tf.placeholder("float32", [None, num_paths, path_length, LSTM_input_size])
+		paths_list = tf.unstack(self._paths, None, 1)
+		unstacked = [tf.unstack(path, None, 1) for path in paths_list]
+		with tf.variable_scope("encoder", reuse=None):
+			outputs, states = rnn.static_rnn(lstm_layer, unstacked[0], dtype="float32")
+		input_pieces = [outputs[-1]]
+		with tf.variable_scope("encoder", reuse=True):
+			for path in unstacked[1:]:
+				outputs, states = rnn.static_rnn(lstm_layer, path, dtype="float32")
+				input_pieces.append(outputs[-1])
+		self._MF_output = tf.placeholder("float32", [None, MF_input_size])
 		input_pieces.append(self._MF_output)
 		x = tf.concat(input_pieces, 1)
 
@@ -42,7 +48,24 @@ class INet:
 		reward_vec = self.sess.run(self.output, {self._paths: paths, self._MF_input: MF_input})
 		return np.argmax(reward_vec)
 
+	def format_paths(paths):
+		inputs = []
+		for batch in paths:
+			rollouts = []
+			for path in batch:
+				state_list = []
+				for tup in path:
+					state = tup[0]
+					state = resize(state, (image_height//10, image_width//10), anti_aliasing=True)
+					state = np.concatenate([np.flatten(state), tup[1]])
+					state_list.append(state)
+				rollouts.append(state_list)
+			inputs.append(rollouts)
+		return np.array(inputs)
+
 	def update(self, paths, MF_output, action, reward, next_paths, next_MF_output, done):
+		paths = format_paths(paths)
+		next_paths = format_paths(next_paths)
 		reward_vec = self.sess.run(self.output, {self._paths: next_paths, self._MF_input: next_MF_input})
 		q_val = reward + self.gamma*np.amax(self.act(next_paths, next_MF_output))*(1-done)
 		self.sess.run(self.train, {self._paths: paths, self._MF_output : MF_output, self.q_val: q_val, self.action: action})

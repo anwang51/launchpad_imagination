@@ -39,13 +39,7 @@ def one_hot(arr, dim):
 
 class EnvNN:
     def __init__(self, state_size, action_size):
-        self.use_cpu = False
-        if self.use_cpu:
-            device = '/cpu:0'
-        else:
-            device = '/gpu:0'
-
-        with tf.device(device):
+        def sub_init():
             config = tf.ConfigProto(allow_soft_placement = True)
             self.sess = tf.Session(config=config)
             self.input_size = state_size + action_size
@@ -70,6 +64,14 @@ class EnvNN:
             self.saver = tf.train.Saver(max_to_keep = 5, keep_checkpoint_every_n_hours = 1)
             self.sess.run(tf.global_variables_initializer())
             self.temp = W1
+
+        self.use_cpu = False
+        if self.use_cpu:
+            with tf.device('/cpu:0'):
+                sub_init()
+        else:
+            sub_init()
+            
 
     def update(self, prev_state, action, next_state, reward):
         # print(np.shape(prev_state))

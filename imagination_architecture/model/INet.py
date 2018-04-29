@@ -12,6 +12,7 @@ class INet:
 		self._paths = tf.placeholder("float", [None, path_length, LSTM_input_size])
 		unstacked = tf.unstack(self._paths, None, 1)
 		outputs, states = rnn.static_rnn(lstm_layer, unstacked, dtype="float")
+		self.memory = []
 
 		input_matrix = outputs[-1]
 		input_pieces = tf.split(input_matrix, num_paths, 0)
@@ -53,16 +54,15 @@ class INet:
             raise IOError('No checkpoint to restore in ' + './FinalCheckpoints/')
         else:
             self.saver.restore(self.sess, path.model_checkpoint_path)
-        
 
-
-	def train(self, state_size, action_size, restore_session = False):
-		dqn = DQN.DQNAgent(600, 400, action_size)		
+	def train(self, input_width, input_height, action_size, restore_session = False):
+		dqn = DQN.DQNAgent(input_width, input_height, action_size)		
 		
 		if restore_session:
             self.restore_session()
 
 		env = gym.make('CartPole-v1')
+		e = 0
         while True:
         	while True:
 	            try:
@@ -76,31 +76,44 @@ class INet:
 	            else:
 	                break
 	        done = False
-	        e = 0
 	        while not done:
-            # MODEL FREE
-            # store prediction
-            # get the actual interpreter prediction and pick whatever action
-            # update
+		        # MODEL FREE
+		        # store prediction
+		        # get the actual interpreter prediction and pick whatever action
+		        # update
 
-            # MODEL BASED
-            # perform the rollouts  
-            # train the core's DQN in the same way
-            # update LSTM
-            dqn_predict = dqn.action(state)
-            icore = ImaginationCore.ImaginationCore(dqn, env, state_size, action_size)
-            
-            # before updating anything, must act
-            
+		        # MODEL BASED
+		        # perform the rollouts  
+		        # train the core's DQN in the same way (not now bc we're using same DQN)
+		        # update LSTM
+		        dqn_predict = dqn.action(state)
+		        icore = ImaginationCore.ImaginationCore(dqn, env, input_width, input_height, action_size)
+		        rollouts = icore.rollout(state)
 
-            e += 1
-            print("episode: {}, score: {}".format(e, reward))
-	       	if epis % 1000 == 0:
+				lstm_out = self.act(rollouts, dqn_predict)
+		        next_state, reward, done, _ = env.step(action) 
+
+		        self.memory.append([copy.deep_copy(env), dqn_predict, action, reward, next_state, done])
+		        dqn.remember(state, action, reward, next_state, done)
+
+		        state = next_state
+
+	        e += 1
+	        num_mem = len(dqn.memory)
+            if num_mem > 32:
+                num_mem = 32
+            dqn.replay(num_mem)
+            self.replay(num_mem)
+
+	        print("episode: {}, score: {}".format(e, reward))
+	       	if e % 1000 == 0:
 	       		saver.save(self.model.sess, './FinalCheckpoints/'+'model')
-	        	print('Model {} saved'.format(epis))
+	        	print('Model {} saved'.format(e))
 
-	def update(self, rollouts, model_free_output):
-		pass
+	
 
 if __name__ == "__main__":
 	model = INet("size of output of envmodel", "action size", "model free output", "action size", "rollouts")
+
+
+ 

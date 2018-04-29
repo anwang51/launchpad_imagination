@@ -40,7 +40,7 @@ def one_hot(arr, dim):
 class EnvNN:
     def __init__(self, state_size, action_size):
         def sub_init():
-            config = tf.ConfigProto(allow_soft_placement = True)
+            config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)
             self.sess = tf.Session(config=config)
             self.input_size = state_size + action_size
             self.output_size = state_size*7 + 1

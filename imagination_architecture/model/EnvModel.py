@@ -68,7 +68,6 @@ class EnvNN:
             self.loss = env_loss(self.y, self.y_hat)
             self.train = tf.train.AdamOptimizer(0.001).minimize(self.loss)
             self.saver = tf.train.Saver(max_to_keep = 5, keep_checkpoint_every_n_hours = 1)
-            self.sess = tf.Session()
             self.sess.run(tf.global_variables_initializer())
             self.temp = W1
 

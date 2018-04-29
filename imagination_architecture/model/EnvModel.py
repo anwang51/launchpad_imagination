@@ -47,7 +47,7 @@ class EnvNN:
 
         with tf.device(device):
             config = tf.ConfigProto(allow_soft_placement = True)
-            self.sess = tf.Session(config)
+            self.sess = tf.Session(config=config)
             self.input_size = state_size + action_size
             self.output_size = state_size*7 + 1
             self.x = tf.placeholder("float32", [None, self.input_size])

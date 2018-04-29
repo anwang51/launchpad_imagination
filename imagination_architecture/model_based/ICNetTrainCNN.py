@@ -239,7 +239,8 @@ class DQNAgent:
             num_mem = len(agent.memory)
             if num_mem > 32:
                 num_mem = 32
-            agent.replay(num_mem)
+            for i in range(12):
+                agent.replay(num_mem)
             epis += 1
         agent.model.save_model("tfmodel_weights.h5")
 

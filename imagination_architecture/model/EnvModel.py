@@ -45,8 +45,8 @@ class EnvNN:
             self.input_size = state_size + action_size
             self.output_size = state_size*7 + 1
             self.x = tf.placeholder("float32", [None, self.input_size])
-            W1 = tf.Variable(tf.random_uniform([self.input_size, 600], 0, 1))
-            b1 = tf.Variable(tf.random_uniform([60000000], 0, 1))
+            W1 = tf.Variable(tf.random_uniform([self.input_size, 60000], 0, 1))
+            b1 = tf.Variable(tf.random_uniform([60000], 0, 1))
             l1 = tf.nn.elu(tf.matmul(self.x, W1)+b1)
 
             W2 = tf.Variable(tf.random_uniform([60000, 60000], 0, 1))

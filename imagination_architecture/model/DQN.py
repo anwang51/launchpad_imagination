@@ -13,7 +13,7 @@ savefile = "./savefile.h5"
 max_time = 500
 
 gamma = 0.9
-class ICNet:
+class DQNNet:
     def __init__(self, input_height, input_width, action_num):
         #with tf.device("/gpu:0"):
         self.x = tf.placeholder("float32", [None, input_height, input_width, 3])
@@ -100,7 +100,7 @@ class DQNAgent:
         # Neural Net for Deep-Q learning Model
         #session = tf.Session()
         tf.reset_default_graph()
-        model = ICNet(self.state_height, self.state_width, self.action_size)
+        model = DQNNet(self.state_height, self.state_width, self.action_size)
         return model
 
     def remember(self, state, action, reward, next_state, done):
@@ -141,9 +141,9 @@ class DQNAgent:
             self.epsilon *= self.epsilon_decay
 
     def restore_session(self):
-        path = tf.train.get_checkpoint_state('./checkpoints/')
+        path = tf.train.get_checkpoint_state('./DQNcheckpoints/')
         if path is None:
-            raise IOError('No checkpoint to restore in ' + './checkpoints/')
+            raise IOError('No checkpoint to restore in ' + './DQNcheckpoints/')
         else:
             self.model.saver.restore(self.model.sess, path.model_checkpoint_path)
             #global_step = int(path.model_checkpoint_path.split('-')[-1])
@@ -211,8 +211,8 @@ class DQNAgent:
                     # print("episode: {}/{}, score: {}"
                     #       .format(e, episodes, reward))
                     break
-            if epis % 10 == 0:
-                self.model.saver.save(self.model.sess, './checkpoints/'+'model')
+            if epis % 1000 == 0:
+                self.model.saver.save(self.model.sess, './DQNcheckpoints/'+'model')
                 print('Model {} saved'.format(epis))
 
             out_str = str(performance_score) + " "

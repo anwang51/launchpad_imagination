@@ -17,18 +17,11 @@ class ImaginationAgent:
         #self.max_time = 500
         temp = DQN.DQNAgent(self.state_size, self.action_size)
         self.dqn = temp.model
-        self.env_model = EnvModelBatch.EnvModel(self.sess, self.state_size, self.action_size)
+        self.env_model = EnvModelBatch.EnvModel(self.state_size, self.action_size)
         #LSTM_input_size, num_paths, MF_input_size, output_size, path_length, sess
         #output of env model
         self.interpreter = INet.INet(15, 4, 5, 5, 4, self.sess)
         self.icore = ImaginationCore.ImaginationCore('TinyWorld-Sokoban-small-v0', self.state_size, self.action_size)
-
-
-    # def load(self, name):
-    #     self.model.saver.restore(self.model.sess, name)
-
-    # def save(self, name):
-    #     self.model.saver.save(self.model.sess, name)
 
     def train(self):
         for e in range(self.episodes):
@@ -88,11 +81,7 @@ class ImaginationAgent:
 
 iModel = ImaginationAgent()
 
-def load_agent():
-    nn.load(savefile)
-
 if __name__ == "__main__":
-    init = tf.global_variables_initializer()
     iModel.sess.run(init)
     iModel.train()
     

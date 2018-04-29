@@ -6,23 +6,25 @@ import tensorflow as tf
 
 class ImaginationCore:
 
-	def __init__(self, agent, env, state_size, action_size):
+	def __init__(self, agent, env, input_height, input_width, action_size):
 		# self.env = EnvironmentModel()
 		self.env = copy.deepcopy(env)
-		self.state_size = state_size
+		self.input_height = input_height
+		self.input_width = input_width
 		self.action_size = action_size
 		self.start_state = self.env.state
-		self.start_state = np.reshape(self.start_state, [1, self.state_size])
-		self.actor = agent
+		# self.start_state = np.reshape(self.start_state, [self.input_width, self.input_height])
+		self.actor = agent # DQNAgent
 
-	def rollout_single(self, state, action):
+	def rollout_single(self, action):
 		next_state, reward, done, _ = self.env.step(action) # make sure env outputs pixels, otherwise we're fucked
-		next_state = np.reshape(next_state, [1, self.state_size])
+		# next_state = np.reshape(next_state, [self.input_width, self.input_height])
 		return [next_state, reward]
 
 	def rollout(self, state, depth=5):
 		result = []
 		for i in range(action_size):
+			temp_env = copy.deepcopy(self.env)
 			temp_depth = depth - 1
 			rollout_result = []
 			next_state, reward = self.rollout_single(state, i)

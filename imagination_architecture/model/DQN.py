@@ -77,8 +77,7 @@ class DQNNet:
         self.sess.run(self.train, {self.x: state, self.q_val: q_vals, self.actions: action})
 
     def action(self, state):
-        reward_vec = self.sess.run(self.y_hat, {self.x: state})
-        return np.argmax(reward_vec)
+        return self.sess.run(self.y_hat, {self.x: state})
 
 
 
@@ -110,6 +109,7 @@ class DQNAgent:
         if np.random.rand() <= self.epsilon:
             return random.randrange(self.action_size)
         act_values = self.model.action(np.array([state]))
+        act_values = np.argmax(act_values)
         return act_values  # returns action
 
     def replay(self, batch_size):

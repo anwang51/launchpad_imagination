@@ -80,7 +80,7 @@ class INet:
                     break
             done = False
             while not done:
-            	curr_cloned_state = env.clone_full_state()
+                curr_cloned_state = env.clone_full_state()
                 icore = ImaginationCore.ImaginationCore(dqn, curr_cloned_state, input_width, input_height, action_size)
                 rollouts = icore.rollout()
 

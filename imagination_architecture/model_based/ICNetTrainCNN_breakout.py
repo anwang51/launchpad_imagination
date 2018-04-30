@@ -13,6 +13,8 @@ savefile = "./savefile.h5"
 max_time = 500
 
 gamma = 0.9
+
+
 class ICNet:
     def __init__(self, sess, input_height, input_width, action_num):
         self.sess = sess

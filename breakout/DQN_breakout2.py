@@ -78,6 +78,7 @@ class Estimator():
             conv2, 64, 3, 1, activation_fn=tf.nn.relu)
         # Fully connected layers
         flattened = tf.contrib.layers.flatten(conv3)
+        print(flattened.shape)
         fc1 = tf.contrib.layers.fully_connected(flattened, 512)
         self.predictions = tf.contrib.layers.fully_connected(fc1, len(VALID_ACTIONS))
         # Get the predictions for the chosen actions only

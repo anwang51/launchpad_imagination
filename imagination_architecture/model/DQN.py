@@ -11,7 +11,9 @@ max_time = 500
 gamma = 0.9
 class DQNNet:
     def __init__(self, input_height, input_width, action_num, sess=None):
+        #with tf.Graph.as_default():
         #with tf.device("/gpu:0"):
+        tf.reset_default_graph()
         self.x = tf.placeholder("float32", [None, input_height, input_width, 3])
         layer1 = tf.image.resize_images(self.x, [80, 120])
         # Convolutional Layer #1
@@ -64,8 +66,10 @@ class DQNNet:
         self.train = tf.train.AdamOptimizer(0.001).minimize(loss)
         self.saver = tf.train.Saver(max_to_keep = 5, keep_checkpoint_every_n_hours =1)
         if(sess is None):
+            print("BEEP BOP BOOOP")
             self.sess = tf.Session()
         else:
+            print("WEEP WOP WOOP")
             self.sess = sess
         #self.sess.run(tf.global_variables_initializer())
         self.temp = W1

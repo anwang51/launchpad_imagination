@@ -98,7 +98,7 @@ class DQNAgent:
 
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
-        tf.reset_default_graph()
+        # tf.reset_default_graph()
         model = DQNNet(self.state_height, self.state_width, self.action_size, self.sess)
         return model
 

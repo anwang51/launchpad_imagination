@@ -34,7 +34,7 @@ class StateProcessor():
 class INet:
 	def __init__(self, LSTM_input_size, num_paths, MF_output_size, output_size, path_length):
 		tf.reset_default_graph()
-		lstm_layer = rnn.core_rnn_cell.BasicLSTMCell(LSTM_input_size,forget_bias=1)
+		lstm_layer = rnn.BasicLSTMCell(LSTM_input_size,forget_bias=1)
 		#Batch_size, path_length, LSTM.input_size
 		self._paths = tf.placeholder("float32", [None, num_paths, path_length, LSTM_input_size])
 		paths_list = tf.unstack(self._paths, None, 1)
@@ -67,15 +67,16 @@ class INet:
 
 		self.saver = tf.train.Saver(max_to_keep = 5, keep_checkpoint_every_n_hours =1)
 		self.sess = tf.Session()
-		
-		self.sess.run(tf.global_variables_initializer())
+
 		print("on other side")
 		self.dqn = DQN.DQNAgent(84, 84, num_paths, self.sess)
 		print("on other other side")
-		
+
 		self.processor = StateProcessor()
 		print("other to the third")
-		
+
+		self.sess.run(tf.global_variables_initializer())
+
 		print("other to the fourth")
 
 	def act(self, paths, MF_output):
@@ -189,4 +190,4 @@ class INet:
 		dones = np.array(dones)
 		self.model.update(states, actions, rewards, next_states, dones)
 
- 
+INet(844, 4, 4, 4, 6)

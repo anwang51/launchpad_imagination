@@ -64,7 +64,7 @@ class INet:
         if restore_session:
             self.restore_session()
 
-        env = gym.make('CartPole-v1')
+        env = gym.make('Breakout-v0')
         e = 0
         while True:
             while True:
@@ -80,27 +80,18 @@ class INet:
                     break
             done = False
             while not done:
-                # MODEL FREE
-                # store prediction
-                # get the actual interpreter prediction and pick whatever action
-                # update
+                curr_cloned_state = env.clone_full_state()
+                icore = ImaginationCore.ImaginationCore(dqn, curr_cloned_state, input_width, input_height, action_size)
+                rollouts = icore.rollout()
 
-                # MODEL BASED
-                # perform the rollouts  
-                # train the core's DQN in the same way (not now bc we're using same DQN)
-                # update LSTM
-                icore = ImaginationCore.ImaginationCore(dqn, env, input_width, input_height, action_size)
-                rollouts = icore.rollout(state)
-
-                lstm_out = self.act(rollouts, dqn_predict)
-                cur_env = copy.deep_copy(env)
-                cur_dqn_predict = dqn.action(state)
-                next_state, reward, done, _ = env.step(action) 
-                next_env = copy.deep_copy(env)
+                curr_dqn_predict = dqn.action(state)
+                lstm_out = self.act(rollouts, curr_dqn_predict)
+          
+                next_state, reward, done, _ = env.step(lstm_out) 
                 next_dqn_predict = dqn.action(next_state)
 
-                self.memory.append([cur_env, cur_dqn_predict, action, reward, next_env, done])
-                dqn.remember(state, action, reward, next_state, done)
+                self.memory.append([curr_cloned_state, curr_dqn_predict, lstm_out, reward, env.clone_full_state, done])
+                dqn.remember(state, lstm_out, reward, next_state, done)
 
                 state = next_state
 
@@ -133,18 +124,10 @@ class INet:
             dones.append(tup[6])
         states = np.array(states)
         print("shape", states.shape)
-        #print("actions_1", actions)
         actions = np.eye(self.action_size)[actions]
-        #print("actions_2", actions)
         rewards = np.array(rewards)
         next_states = np.array(next_states)
         dones = np.array(dones)
-        #print("states", states, "actions", actions, "rewards", rewards, "next_states", next_states)
-        #print("rewards", rewards)
         self.model.update(states, actions, rewards, next_states, dones)
-
-#if __name__ == "__main__":
-    # model = INet("size of output of envmodel", "action size", "model free output", "action size", "rollouts")
-
 
  

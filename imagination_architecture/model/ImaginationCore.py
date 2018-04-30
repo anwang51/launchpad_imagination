@@ -1,6 +1,5 @@
 from DQN import DQNAgent
 import gym
-import gym_sokoban
 import numpy as np
 import tensorflow as tf
 
@@ -45,7 +44,6 @@ class ImaginationCore:
 				next_state, reward = self.rollout_four(action)
 				rollout_result.append([next_state, reward])
 				temp_depth -= 1
-			self.env = save_env
 			result.append(rollout_result)
 		return np.array(result)
 

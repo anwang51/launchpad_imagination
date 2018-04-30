@@ -5,10 +5,6 @@ import random
 import gym
 from math import log
 import math
-
-# record = open("performance", "w")
-# savefile = "./savefile.h5"
-
 # POLE-SPECIFIC
 max_time = 500
 
@@ -97,7 +93,6 @@ class DQNAgent:
 
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
-        #session = tf.Session()
         tf.reset_default_graph()
         model = DQNNet(self.state_height, self.state_width, self.action_size)
         return model
@@ -127,14 +122,10 @@ class DQNAgent:
             dones.append(tup[4])
         states = np.array(states)
         print("shape", states.shape)
-        #print("actions_1", actions)
         actions = np.eye(self.action_size)[actions]
-        #print("actions_2", actions)
         rewards = np.array(rewards)
         next_states = np.array(next_states)
         dones = np.array(dones)
-        #print("states", states, "actions", actions, "rewards", rewards, "next_states", next_states)
-        #print("rewards", rewards)
         self.model.update(states, actions, rewards, next_states, dones)
 
         if self.epsilon > self.epsilon_min:
@@ -172,37 +163,17 @@ class DQNAgent:
                 else:
                     break
             # state = env.render(mode='rgb_array')
-            # print(state.shape)
-            # time_t represents each frame of the game
-            # Our goal is to keep the pole upright as long as possible until score of max_time
-            # the more time_t the more score
             performance_score = 0
             done = False
             while not done:
-                # turn this on if you want to render
-                # env.render()
-                # Decide action
                 action = agent.act(state)
-                #print(np.shape(state))
-                #test = np.array([[1,2,3]])
-                #print(np.shape(test))
-                # Advance the game to the next frame based on the action.
-                # Reward is 1 for every frame the pole survived
                 next_state, reward, done, _ = env.step(action)
-                #next_state = env.render(mode='rgb_array')
                 performance_score += reward
                 if done:
                     reward = -2
-                # Remember the previous state, action, reward, and done
                 agent.remember(state, action, reward, next_state, done)
-                # make next_state the new current state for the next frame.
                 state = next_state
-                # done becomes True when the game ends
-                # ex) The agent drops the pole
                 if done:
-                    # print the score and break out of the loop
-                    print("episode: {}/{}, score: {}"
-                          .format(epis, episodes, reward))
                     break
             if epis % 1000 == 0:
                 self.model.saver.save(self.model.sess, './DQNcheckpoints/'+'model')

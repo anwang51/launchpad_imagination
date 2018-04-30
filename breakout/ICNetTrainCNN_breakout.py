@@ -220,7 +220,7 @@ class DQNAgent:
                 self.running_average.pop(0)
             self.running_average.append(performance_score)
 
-            if epis % 200 == 0 and epis == 0:
+            if epis % 200 == 0 and epis != 0:
                 self.model.saver.save(self.model.sess, './breakout_saves/'+'breakout_ep'+str(epis)+"_"+str(performance_score))
 
             sys.stdout.flush()

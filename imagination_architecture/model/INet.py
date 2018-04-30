@@ -3,7 +3,6 @@ from tensorflow.contrib import rnn
 import numpy as np
 import random
 import DQN
-import EnvModelBatch
 import ImaginationCore
 
 
@@ -35,8 +34,6 @@ class StateProcessor():
 class INet:
 	def __init__(self, LSTM_input_size, num_paths, MF_output_size, output_size, path_length):
 		tf.reset_default_graph()
-		lstm_layer = rnn.core_rnn_cell.BasicLSTMCell(LSTM_input_size,forget_bias=1)
-		#lstm_layer = rnn.BasicLSTMCell(LSTM_input_size,forget_bias=1)
 		lstm_layer = rnn.core_rnn_cell.BasicLSTMCell(LSTM_input_size,forget_bias=1)
 		#Batch_size, path_length, LSTM.input_size
 		self._paths = tf.placeholder("float32", [None, num_paths, path_length, LSTM_input_size])
@@ -98,7 +95,7 @@ class INet:
 				state_list = []
 				for tup in path:
 					state = tup[0]
-					state = self.processor.process(self.sess, state)
+					#state = self.processor.process(self.sess, state)
 					state = np.concatenate([np.flatten(state), tup[1]])
 					state_list.append(state)
 				rollouts.append(state_list)
@@ -133,7 +130,7 @@ class INet:
 			done = False
 			while not done:
 				curr_cloned_state = env.clone_full_state()
-				icore = ImaginationCore.ImaginationCore(dqn, curr_cloned_state, input_width, input_height, action_size)
+				icore = ImaginationCore.ImaginationCore(dqn, curr_cloned_state, input_width, input_height, action_size, self.processor)
 				rollouts = icore.rollout()
 
 				curr_dqn_predict = dqn.action(state)
@@ -169,12 +166,12 @@ class INet:
 		next_MF_outputs = []
 		dones = []
 		for tup in minibatch:
-			cur_IC = ImaginationCore.ImaginationCore(self.dqn, tup[0], input_width, input_height, action_size)
+			cur_IC = ImaginationCore.ImaginationCore(self.dqn, tup[0], input_width, input_height, action_size, self.processor)
 			states.append(cur_IC.rollout())
 			MF_outputs.append(tup[1])
 			actions.append(tup[2])
 			rewards.append(tup[3])
-			next_IC = ImaginationCore.ImaginationCore(self.dqn, tup[4], input_width, input_height, action_size)
+			next_IC = ImaginationCore.ImaginationCore(self.dqn, tup[4], input_width, input_height, action_size, self.processor)
 			next_states.append(next_IC.rollout())
 			next_MF_outputs.append(tup[5])
 			dones.append(tup[6])

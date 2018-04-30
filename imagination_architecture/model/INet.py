@@ -33,20 +33,21 @@ class StateProcessor():
 
 class INet:
 	def __init__(self, LSTM_input_size, num_paths, MF_output_size, output_size, path_length):
-		tf.reset_default_graph()
+		#tf.reset_default_graph()
 		#with tf.Graph.as_default():
-		lstm_layer = rnn.core_rnn_cell.BasicLSTMCell(LSTM_input_size,forget_bias=1)
 		#Batch_size, path_length, LSTM.input_size
 		self._paths = tf.placeholder("float32", [None, num_paths, path_length, LSTM_input_size])
 		paths_list = tf.unstack(self._paths, None, 1)
 		#unstacked = [tf.unstack(path, None, 1) for path in paths_list]
 		with tf.variable_scope("encoder", reuse=None):
+			lstm_layer = rnn.core_rnn_cell.BasicLSTMCell(LSTM_input_size,forget_bias=1)
 			outputs, states = tf.nn.dynamic_rnn(lstm_layer, paths_list[0], dtype="float32")
 		input_pieces = [outputs[-1]]
 		with tf.variable_scope("encoder", reuse=True):
 			for path in paths_list[1:]:
 				outputs, states = tf.nn.dynamic_rnn(lstm_layer, path, dtype="float32")
 				input_pieces.append(outputs[-1])
+
 		self._MF_output = tf.placeholder("float32", [None, MF_output_size])
 		input_pieces.append(self._MF_output)
 		x = tf.concat(input_pieces, 1)
@@ -68,15 +69,14 @@ class INet:
 
 		#self.saver = tf.train.Saver(max_to_keep = 5, keep_checkpoint_every_n_hours =1)
 		self.sess = tf.Session()
-		
-		print("on other side")
+
 		self.dqn = DQN.DQNAgent(84, 84, num_paths, sess=self.sess)
 		print("on other other side")
-		self.sess.run(tf.global_variables_initializer())
-		
+
 		self.processor = StateProcessor()
 		print("other to the third")
 
+		self.sess.run(tf.global_variables_initializer())
 
 		print("other to the fourth")
 
@@ -191,4 +191,4 @@ class INet:
 		dones = np.array(dones)
 		self.model.update(states, actions, rewards, next_states, dones)
 
- 
+INet(844, 4, 4, 4, 5)

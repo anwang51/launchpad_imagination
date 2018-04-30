@@ -13,7 +13,7 @@ class DQNNet:
     def __init__(self, input_height, input_width, action_num, sess=None):
         #with tf.Graph.as_default():
         #with tf.device("/gpu:0"):
-        tf.reset_default_graph()
+        #tf.reset_default_graph()
         self.x = tf.placeholder("float32", [None, input_height, input_width, 3])
         layer1 = tf.image.resize_images(self.x, [80, 120])
         # Convolutional Layer #1
@@ -102,7 +102,7 @@ class DQNAgent:
 
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
-        tf.reset_default_graph()
+        # tf.reset_default_graph()
         model = DQNNet(self.state_height, self.state_width, self.action_size, self.sess)
         return model
 

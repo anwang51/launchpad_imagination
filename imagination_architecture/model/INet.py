@@ -2,6 +2,7 @@ import tensorflow as tf
 from tensorflow.contrib import rnn
 import numpy as np
 import random
+import gym
 import DQN
 import ImaginationCore
 
@@ -15,12 +16,18 @@ class StateProcessor():
 		# Builds the Tensorflow graph
 		with tf.variable_scope("state_processor"):
 			self.input_state = tf.placeholder(shape=[210, 160, 3], dtype=tf.uint8) #
+
 			self.output = tf.image.rgb_to_grayscale(self.input_state)
 			self.output = tf.image.crop_to_bounding_box(self.output, 34, 0, 160, 160)
 			self.output = tf.image.resize_images(
 				self.output, [84, 84], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 			self.output = tf.squeeze(self.output)
 
+			self.output_2 = tf.image.rgb_to_grayscale(self.input_state)
+			self.output_2 = tf.image.crop_to_bounding_box(self.output_2, 34, 0, 160, 160)
+			self.output_2 = tf.image.resize_images(
+				self.output_2, [30, 30], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+			self.output_2 = tf.squeeze(self.output_2)
 	def process(self, sess, state):
 		"""
 		Args:
@@ -30,6 +37,16 @@ class StateProcessor():
 			A processed [84, 84, 1] state representing grayscale values.
 		"""
 		return sess.run(self.output, { self.input_state: state })
+
+	def process_2(self, sess, state):
+		"""
+		Args:
+			sess: A Tensorflow session object
+			state: A [210, 160, 3] Atari RGB State
+		Returns:
+			A processed [34, 34, 1] state representing grayscale values.
+		"""
+		return sess.run(self.output_2, { self.input_state: state })
 
 class INet:
 	def __init__(self, LSTM_input_size, num_paths, MF_output_size, output_size, path_length):
@@ -117,7 +134,7 @@ class INet:
 		else:
 			self.saver.restore(self.sess, path.model_checkpoint_path)
 
-	def train(self, input_width, input_height, action_size, restore_session = False):   
+	def trainloop(self, action_size, restore_session = False):   
 		if restore_session:
 			self.restore_session()
 
@@ -138,7 +155,7 @@ class INet:
 			done = False
 			while not done:
 				curr_cloned_state = env.clone_full_state()
-				icore = ImaginationCore.ImaginationCore(dqn, curr_cloned_state, input_width, input_height, action_size, self.processor)
+				icore = ImaginationCore.ImaginationCore(dqn, curr_cloned_state, action_size, self.processor)
 				rollouts = icore.rollout()
 
 				curr_dqn_predict = dqn.action(state)
@@ -174,12 +191,12 @@ class INet:
 		next_MF_outputs = []
 		dones = []
 		for tup in minibatch:
-			cur_IC = ImaginationCore.ImaginationCore(self.dqn, tup[0], input_width, input_height, action_size, self.processor)
+			cur_IC = ImaginationCore.ImaginationCore(self.dqn, tup[0], action_size, self.processor)
 			states.append(cur_IC.rollout())
 			MF_outputs.append(tup[1])
 			actions.append(tup[2])
 			rewards.append(tup[3])
-			next_IC = ImaginationCore.ImaginationCore(self.dqn, tup[4], input_width, input_height, action_size, self.processor)
+			next_IC = ImaginationCore.ImaginationCore(self.dqn, tup[4], action_size, self.processor)
 			next_states.append(next_IC.rollout())
 			next_MF_outputs.append(tup[5])
 			dones.append(tup[6])
@@ -191,4 +208,6 @@ class INet:
 		dones = np.array(dones)
 		self.model.update(states, actions, rewards, next_states, dones)
 
-INet(844, 4, 4, 4, 5)
+agent = INet(900, 4, 4, 4, 5)
+agent.trainloop(4)
+

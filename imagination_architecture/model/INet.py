@@ -14,8 +14,8 @@ class StateProcessor():
 	def __init__(self):
 		# Builds the Tensorflow graph
 		with tf.variable_scope("state_processor"):
-			self.input_state = tf.placeholder(shape=[210, 160, 12], dtype=tf.uint8) #
-			#self.output = tf.image.rgb_to_grayscale(self.input_state)
+			self.input_state = tf.placeholder(shape=[210, 160, 3], dtype=tf.uint8) #
+			self.output = tf.image.rgb_to_grayscale(self.input_state)
 			self.output = tf.image.crop_to_bounding_box(self.output, 34, 0, 160, 160)
 			self.output = tf.image.resize_images(
 				self.output, [84, 84], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
@@ -67,10 +67,15 @@ class INet:
 
 		self.saver = tf.train.Saver(max_to_keep = 5, keep_checkpoint_every_n_hours =1)
 		self.sess = tf.Session()
-		self.sess.run(tf.global_variables_initializer())
+		
 
-		self.dqn = DQN.DQNAgent(input_width, input_height, action_size) 
+		print("on other side")
+		self.dqn = DQN.DQNAgent(84, 84, num_paths)
+		print("on other other side")
 		self.processor = StateProcessor()
+		print("other to the third")
+		self.sess.run(tf.global_variables_initializer())
+		print("other to the fourth")
 
 	def act(self, paths, MF_output):
 		reward_vec = self.sess.run(self.output, {self._paths: paths, self._MF_output: MF_output})

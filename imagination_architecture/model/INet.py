@@ -68,13 +68,14 @@ class INet:
 		self.saver = tf.train.Saver(max_to_keep = 5, keep_checkpoint_every_n_hours =1)
 		self.sess = tf.Session()
 		
-
+		self.sess.run(tf.global_variables_initializer())
 		print("on other side")
-		self.dqn = DQN.DQNAgent(84, 84, num_paths)
+		self.dqn = DQN.DQNAgent(84, 84, num_paths, self.sess)
 		print("on other other side")
+		
 		self.processor = StateProcessor()
 		print("other to the third")
-		self.sess.run(tf.global_variables_initializer())
+		
 		print("other to the fourth")
 
 	def act(self, paths, MF_output):

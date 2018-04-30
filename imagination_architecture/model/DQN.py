@@ -10,7 +10,7 @@ max_time = 500
 
 gamma = 0.9
 class DQNNet:
-    def __init__(self, input_height, input_width, action_num):
+    def __init__(self, input_height, input_width, action_num, sess=None):
         #with tf.device("/gpu:0"):
         self.x = tf.placeholder("float32", [None, input_height, input_width, 3])
         layer1 = tf.image.resize_images(self.x, [80, 120])
@@ -63,8 +63,11 @@ class DQNNet:
         loss = tf.losses.mean_squared_error(self.q_val, q_val_hat)
         self.train = tf.train.AdamOptimizer(0.001).minimize(loss)
         self.saver = tf.train.Saver(max_to_keep = 5, keep_checkpoint_every_n_hours =1)
-        self.sess = tf.Session()
-        self.sess.run(tf.global_variables_initializer())
+        if(sess is None):
+            self.sess = tf.Session()
+        else:
+            self.sess = sess
+        #self.sess.run(tf.global_variables_initializer())
         self.temp = W1
 
     def update(self, state, action, reward, next_state, done):
@@ -79,7 +82,8 @@ class DQNNet:
 
 # Deep Q-learning Agent
 class DQNAgent:
-    def __init__(self, state_width, state_height, action_size):
+    def __init__(self, state_width, state_height, action_size, sess=None):
+        self.sess = sess
         self.state_width = state_width
         self.state_height = state_height
         self.action_size = action_size
@@ -90,11 +94,12 @@ class DQNAgent:
         self.model = self._build_model()
         self.episodes = 3000
         self.training_result = []
+        
 
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
         tf.reset_default_graph()
-        model = DQNNet(self.state_height, self.state_width, self.action_size)
+        model = DQNNet(self.state_height, self.state_width, self.action_size, self.sess)
         return model
 
     def remember(self, state, action, reward, next_state, done):

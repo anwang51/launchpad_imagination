@@ -14,8 +14,9 @@ class DQNNet:
         #with tf.Graph.as_default():
         #with tf.device("/gpu:0"):
         #tf.reset_default_graph()
-        self.x = tf.placeholder("float32", [None, input_height, input_width, 3])
-        layer1 = tf.image.resize_images(self.x, [80, 120])
+        self.x = tf.placeholder("float32", [None, input_height, input_width])
+        layer1 = tf.expand_dims(self.x, -1)
+        print(layer1.shape)
         # Convolutional Layer #1
         conv1 = tf.layers.conv2d(
         inputs=layer1,
@@ -52,10 +53,10 @@ class DQNNet:
 
         c3height = math.ceil(c2height / 2)
         c3width = math.ceil(c2width / 2)
-        pool3_flat = tf.reshape(pool3, [-1, c3width*c3height * 32 * 4])
+        pool3_flat = tf.reshape(pool3, [-1, 14112])
 
 
-        W1 = tf.Variable(tf.random_uniform([c3width*c3height * 32 * 4, action_num], 0, 1))
+        W1 = tf.Variable(tf.random_uniform([14112, action_num], 0, 1))
         b1 = tf.Variable(tf.random_uniform([action_num], 0, 1))
 
         self.y_hat = tf.nn.elu(tf.matmul(pool3_flat, W1)+b1)
@@ -114,6 +115,15 @@ class DQNAgent:
             return random.randrange(self.action_size)
         act_values = self.model.action(np.array([state]))
         act_values = np.argmax(act_values)
+        return act_values  # returns action
+
+    def action(self, state):
+        act_values = self.model.action(np.array([state]))
+        act_values = np.argmax(act_values)
+        return act_values  # returns action
+
+    def reward_vec(self, state):
+        act_values = self.model.action(np.array([state]))
         return act_values  # returns action
 
     def replay(self, batch_size):

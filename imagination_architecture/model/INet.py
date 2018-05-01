@@ -1,5 +1,6 @@
 import tensorflow as tf
 from tensorflow.contrib import rnn
+from collections import deque
 import numpy as np
 import random
 import gym
@@ -12,9 +13,10 @@ class StateProcessor():
 	Processes raw Atari images. Resizes it to 84x84 and converts it to grayscale.
 
 	"""
-	def __init__(self):
+	def __init__(self, sess):
 		# Builds the Tensorflow graph
 		with tf.variable_scope("state_processor"):
+			self.sess = sess
 			self.input_state = tf.placeholder(shape=[210, 160, 3], dtype=tf.uint8) #
 
 			self.output = tf.image.rgb_to_grayscale(self.input_state)
@@ -28,7 +30,7 @@ class StateProcessor():
 			self.output_2 = tf.image.resize_images(
 				self.output_2, [30, 30], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 			self.output_2 = tf.squeeze(self.output_2)
-	def process(self, sess, state):
+	def process(self, state):
 		"""
 		Args:
 			sess: A Tensorflow session object
@@ -36,9 +38,9 @@ class StateProcessor():
 		Returns:
 			A processed [84, 84, 1] state representing grayscale values.
 		"""
-		return sess.run(self.output, { self.input_state: state })
+		return self.sess.run(self.output, { self.input_state: state })
 
-	def process_2(self, sess, state):
+	def process_2(self, state):
 		"""
 		Args:
 			sess: A Tensorflow session object
@@ -46,7 +48,7 @@ class StateProcessor():
 		Returns:
 			A processed [34, 34, 1] state representing grayscale values.
 		"""
-		return sess.run(self.output_2, { self.input_state: state })
+		return self.sess.run(self.output_2, { self.input_state: state })
 
 class INet:
 	def __init__(self, LSTM_input_size, num_paths, MF_output_size, output_size, path_length):
@@ -59,14 +61,16 @@ class INet:
 		with tf.variable_scope("encoder", reuse=None):
 			lstm_layer = rnn.core_rnn_cell.BasicLSTMCell(LSTM_input_size,forget_bias=1)
 			outputs, states = tf.nn.dynamic_rnn(lstm_layer, paths_list[0], dtype="float32")
-		input_pieces = [outputs[-1]]
+			print("outputs.shape:", outputs.shape)
+		input_pieces = [outputs[:,-1,:]]
 		with tf.variable_scope("encoder", reuse=True):
 			for path in paths_list[1:]:
 				outputs, states = tf.nn.dynamic_rnn(lstm_layer, path, dtype="float32")
-				input_pieces.append(outputs[-1])
+				input_pieces.append(outputs[:,-1,:])
 
 		self._MF_output = tf.placeholder("float32", [None, MF_output_size])
 		input_pieces.append(self._MF_output)
+		print("input_pieces_shape:", input_pieces[0].shape)
 		x = tf.concat(input_pieces, 1)
 
 		W1 = tf.get_variable('W1', [num_paths*LSTM_input_size+MF_output_size, 40], initializer=tf.contrib.layers.xavier_initializer())
@@ -88,9 +92,10 @@ class INet:
 		self.sess = tf.Session()
 
 		self.dqn = DQN.DQNAgent(84, 84, num_paths, sess=self.sess)
+		self.memory = deque(maxlen=2000)
 		print("on other other side")
 
-		self.processor = StateProcessor()
+		self.processor = StateProcessor(self.sess)
 		print("other to the third")
 
 		self.sess.run(tf.global_variables_initializer())
@@ -98,6 +103,7 @@ class INet:
 		print("other to the fourth")
 
 	def act(self, paths, MF_output):
+		paths = self.format_paths([paths])
 		reward_vec = self.sess.run(self.output, {self._paths: paths, self._MF_output: MF_output})
 		return np.argmax(reward_vec)
 
@@ -106,13 +112,13 @@ class INet:
 		MF_input = states[1]
 		next_paths = next_states[0]
 		next_MF_input = next_states[1]
-		paths = format_paths(paths)
-		next_paths = format_paths(next_paths)
+		paths = self.format_paths(paths)
+		next_paths = self.format_paths(next_paths)
 		reward_vec = self.sess.run(self.output, {self._paths: next_paths, self._MF_input: next_MF_input})
-		q_val = reward + self.gamma*np.amax(self.act(next_paths, next_MF_output))*(1-done)
+		q_val = reward + self.gamma*np.amax(reward_vec)*(1-done)
 		self.sess.run(self.train, {self._paths: paths, self._MF_output : MF_output, self.q_val: q_val, self.action: action})
 
-	def format_paths(paths):
+	def format_paths(self, paths):
 		inputs = []
 		for batch in paths:
 			rollouts = []
@@ -121,7 +127,7 @@ class INet:
 				for tup in path:
 					state = tup[0]
 					#state = self.processor.process(self.sess, state)
-					state = np.concatenate([np.flatten(state), tup[1]])
+					state = np.concatenate([state.flatten(), np.array([tup[1]])])
 					state_list.append(state)
 				rollouts.append(state_list)
 			inputs.append(rollouts)
@@ -144,6 +150,7 @@ class INet:
 			while True:
 				try:
 					state = env.reset()
+					state = self.processor.process(state)
 				except RuntimeWarning:
 					print("RuntimeWarning caught: retrying")
 					continue
@@ -154,26 +161,29 @@ class INet:
 					break
 			done = False
 			while not done:
-				curr_cloned_state = env.clone_full_state()
-				icore = ImaginationCore.ImaginationCore(dqn, curr_cloned_state, action_size, self.processor)
+				curr_cloned_state = env.env.clone_full_state()
+				icore = ImaginationCore.ImaginationCore(self.dqn, curr_cloned_state, action_size, self.processor)
 				rollouts = icore.rollout()
 
-				curr_dqn_predict = dqn.action(state)
+				curr_dqn_predict = self.dqn.reward_vec(state)
+				print("curr_dqn_predict", curr_dqn_predict)
 				lstm_out = self.act(rollouts, curr_dqn_predict)
 		  
 				next_state, reward, done, _ = env.step(lstm_out) 
-				next_dqn_predict = dqn.action(next_state)
+				next_state = self.processor.process(next_state)
 
-				self.memory.append([curr_cloned_state, curr_dqn_predict, lstm_out, reward, env.clone_full_state(), done])
-				dqn.remember(state, lstm_out, reward, next_state, done)
+				next_dqn_predict = self.dqn.reward_vec(next_state)
+
+				self.memory.append([curr_cloned_state, curr_dqn_predict, lstm_out, reward, env.env.clone_full_state(), done])
+				self.dqn.remember(state, lstm_out, reward, next_state, done)
 
 				state = next_state
 
 			e += 1
-			num_mem = len(dqn.memory)
+			num_mem = len(self.dqn.memory)
 			if num_mem > 32:
 				num_mem = 32
-			dqn.replay(num_mem)
+			self.dqn.replay(num_mem)
 			self.replay(num_mem)
 
 			print("episode: {}, score: {}".format(e, reward))
@@ -208,6 +218,6 @@ class INet:
 		dones = np.array(dones)
 		self.model.update(states, actions, rewards, next_states, dones)
 
-agent = INet(900, 4, 4, 4, 5)
+agent = INet(901, 4, 4, 4, 5)
 agent.trainloop(4)
 

@@ -6,9 +6,8 @@ import tensorflow as tf
 class ImaginationCore:
 	def __init__(self, agent, cloned_state, action_size, processor):
 		self.env = gym.make('Breakout-v0')
+		self.env.reset()
 		self.cloned_state = cloned_state
-		self.input_height = input_height
-		self.input_width = input_width
 		self.action_size = action_size
 		# self.start_state = np.reshape(self.start_state, [self.input_width, self.input_height])
 		self.actor = agent # DQNAgent
@@ -28,12 +27,12 @@ class ImaginationCore:
 			reward_sum += reward
 		# next_state = np.reshape(next_state, [self.input_width, self.input_height])
 		#next_state = np.concatenate(next_states, 2)
-		return (processor.process_2(next_state), reward_sum)
+		return (self.processor.process_2(next_state), reward_sum)
 
 	def rollout(self, depth=5):
 		result = []
-		for i in range(action_size):
-			self.env.restore_full_state(self.cloned_state)
+		for i in range(self.action_size):
+			self.env.env.restore_full_state(self.cloned_state)
 			temp_depth = depth - 1
 			rollout_result = []
 			next_state, reward = self.rollout_four(i)

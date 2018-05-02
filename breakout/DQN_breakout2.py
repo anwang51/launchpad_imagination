@@ -221,7 +221,7 @@ def deep_q_learning(sess,
         os.makedirs(checkpoint_dir)
     if not os.path.exists(monitor_path):
         os.makedirs(monitor_path)
-    saver = tf.train.Saver()
+    saver = tf.train.Saver(max_to_keep=100)
     # Load a previous checkpoint if we find one
     latest_checkpoint = tf.train.latest_checkpoint(checkpoint_dir)
     if latest_checkpoint:
@@ -259,7 +259,8 @@ def deep_q_learning(sess,
     #env = Monitor(env, directory=monitor_path, video_callable=lambda count: count % record_video_every == 0, resume=True)
     for i_episode in range(num_episodes):
         # Save the current checkpoint
-        saver.save(tf.get_default_session(), checkpoint_path)
+        if i_episode % 500 == 0:
+            saver.save(tf.get_default_session(), checkpoint_path)
         # Reset the environment
         state = env.reset()
         state = state_processor.process(sess, state)

@@ -94,7 +94,7 @@ class INet:
 		#self.saver = tf.train.Saver(max_to_keep = 5, keep_checkpoint_every_n_hours =1)
 		self.sess = tf.Session()
 
-		self.dqn = DQN.DQNAgent(84, 84, num_paths, sess=self.sess)
+		self.dqn = DQN.DQNAgent(84, 84, 4, num_paths, sess=self.sess)
 		self.memory = deque(maxlen=2000)
 		print("on other other side")
 

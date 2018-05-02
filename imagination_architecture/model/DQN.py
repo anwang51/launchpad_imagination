@@ -93,8 +93,8 @@ class DQNAgent:
         self.state_height = state_height
         self.action_size = action_size
         self.memory = deque(maxlen=2000)
-        self.epsilon = 1  # exploration rate
-        self.epsilon_min = 0.01
+        self.epsilon = 0.0  # exploration rate
+        self.epsilon_min = 0.0
         self.epsilon_decay = 0.995
         self.model = self._build_model()
         self.episodes = 3000

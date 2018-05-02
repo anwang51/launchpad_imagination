@@ -57,6 +57,7 @@ class INet:
 		#Batch_size, path_length, LSTM.input_size
 		self.epsilon = 1
 		self.e_decay = 0.9995
+		self.gamma = 0.99
 		self._paths = tf.placeholder("float32", [None, num_paths, path_length, LSTM_input_size])
 		paths_list = tf.unstack(self._paths, None, 1)
 		#unstacked = [tf.unstack(path, None, 1) for path in paths_list]
@@ -114,14 +115,15 @@ class INet:
 
 	def update(self, states, action, reward, next_states, done):
 		paths = states[0]
-		MF_input = states[1]
+		MF_output = states[1]
 		next_paths = next_states[0]
-		next_MF_input = next_states[1]
+		next_MF_output = next_states[1]
 		paths = self.format_paths(paths)
 		next_paths = self.format_paths(next_paths)
-		reward_vec = self.sess.run(self.output, {self._paths: next_paths, self._MF_input: next_MF_input})
+		next_MF_output = np.reshape(next_MF_output, (32, 4))
+		reward_vec = self.sess.run(self.output, {self._paths: next_paths, self._MF_output: next_MF_output})
 		q_val = reward + self.gamma*np.amax(reward_vec)*(1-done)
-		self.sess.run(self.train, {self._paths: paths, self._MF_output : MF_output, self.q_val: q_val, self.action: action})
+		self.sess.run(self.train, {self._paths: paths, self._MF_output : next_MF_output, self.q_val: q_val, self.actions: action})
 
 	def format_paths(self, paths):
 		inputs = []
@@ -145,7 +147,7 @@ class INet:
 		else:
 			self.saver.restore(self.sess, path.model_checkpoint_path)
 
-	def trainloop(self, action_size, restore_session = False):   
+	def trainloop(self, action_size, restore_session = False):
 		if restore_session:
 			self.restore_session()
 
@@ -165,8 +167,7 @@ class INet:
 				else:
 					break
 			done = False
-			counter = 0
-			while not done and counter < 100:
+			while not done:
 				curr_cloned_state = env.env.clone_full_state()
 				icore = ImaginationCore.ImaginationCore(self.dqn, curr_cloned_state, action_size, self.processor)
 				rollouts = icore.rollout()
@@ -180,11 +181,10 @@ class INet:
 
 				next_dqn_predict = self.dqn.reward_vec(next_state)
 
-				self.memory.append([curr_cloned_state, curr_dqn_predict, lstm_out, reward, next_dqn_predict, env.env.clone_full_state(), done])
+				self.memory.append([curr_cloned_state, curr_dqn_predict, lstm_out, reward, env.env.clone_full_state(), next_dqn_predict, done])
 				self.dqn.remember(state, lstm_out, reward, next_state, done)
 
 				state = next_state
-				counter += 1
 
 			e += 1
 			num_mem = len(self.dqn.memory)
@@ -199,7 +199,7 @@ class INet:
 
 			print("episode: {}, score: {}".format(e, reward))
 			if e % 1000 == 0:
-				saver.save(self.model.sess, './FinalCheckpoints/'+'model')
+				saver.save(self.sess, './FinalCheckpoints/'+'model')
 				print('Model {} saved'.format(e))
 
 	def replay(self, batch_size, action_size):
@@ -212,11 +212,8 @@ class INet:
 		next_MF_outputs = []
 		dones = []
 		for tup in minibatch:
-			print("tup: ", tup)
 			cur_IC = ImaginationCore.ImaginationCore(self.dqn, tup[0], action_size, self.processor)
-			print("before rollout")
 			states.append(cur_IC.rollout())
-			print("after rollout")
 			MF_outputs.append(tup[1])
 			actions.append(tup[2])
 			rewards.append(tup[3])
@@ -224,15 +221,12 @@ class INet:
 			next_states.append(next_IC.rollout())
 			next_MF_outputs.append(tup[5])
 			dones.append(tup[6])
-			print("some garbage: ", tup)
 		states = tuple([states, np.array(MF_outputs)])
 		next_states = tuple([next_states, np.array(next_MF_outputs)])
-		print("shape ", states.shape)
-		actions = np.eye(self.action_size)[actions]
+		actions = np.eye(action_size)[actions]
 		rewards = np.array(rewards)
 		dones = np.array(dones)
-		print("model: ", self.model)
-		self.model.update(states, actions, rewards, next_states, dones)
+		self.update(states, actions, rewards, next_states, dones)
 
 agent = INet(901, 4, 4, 4, 5)
 agent.trainloop(4)

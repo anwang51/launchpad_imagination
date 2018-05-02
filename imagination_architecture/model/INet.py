@@ -7,6 +7,7 @@ import gym
 import DQN
 import ImaginationCore
 
+env = gym.make('Breakout-v0')
 
 class StateProcessor():
 	"""
@@ -64,7 +65,6 @@ class INet:
 		with tf.variable_scope("encoder", reuse=None):
 			lstm_layer = rnn.BasicLSTMCell(LSTM_input_size,forget_bias=1)
 			outputs, states = tf.nn.dynamic_rnn(lstm_layer, paths_list[0], dtype="float32")
-			print("outputs.shape:", outputs.shape)
 		input_pieces = [outputs[:,-1,:]]
 		with tf.variable_scope("encoder", reuse=True):
 			for path in paths_list[1:]:
@@ -73,37 +73,26 @@ class INet:
 
 		self._MF_output = tf.placeholder("float32", [None, MF_output_size])
 		input_pieces.append(self._MF_output)
-		print("input_pieces_shape:", input_pieces[0].shape)
 		x = tf.concat(input_pieces, 1)
-
 		W1 = tf.get_variable('W1', [num_paths*LSTM_input_size+MF_output_size, 40], initializer=tf.contrib.layers.xavier_initializer())
 		b1 = tf.get_variable('b1', [40], initializer=tf.contrib.layers.xavier_initializer())
 		l1 = tf.nn.relu(tf.matmul(x, W1)+b1)
 		W2 = tf.get_variable('W2', [40, output_size], initializer=tf.contrib.layers.xavier_initializer())
 		b2 = tf.get_variable('b2', [output_size], initializer=tf.contrib.layers.xavier_initializer())
 		self.output = tf.matmul(l1, W2)+b2
-
-
 		self.q_val = tf.placeholder("float32", [None]) #Proper q-vals as calculated by the bellman equation
 		self.actions = tf.placeholder("float32", [None, output_size]) #Actions stored as one-hot vectors
 		self.q_val_hat = tf.reduce_sum(tf.multiply(self.output, self.actions), axis=1)
 		self.loss = tf.losses.mean_squared_error(self.q_val, self.q_val_hat)
 		self.optimizer = tf.train.AdamOptimizer(0.001)
 		self.train = self.optimizer.minimize(self.loss)
-
 		#self.saver = tf.train.Saver(max_to_keep = 5, keep_checkpoint_every_n_hours =1)
-		self.sess = tf.Session()
-
-		self.dqn = DQN.DQNAgent(84, 84, 4, num_paths, sess=self.sess)
+		config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)
+		self.sess = tf.Session(config=config)
+		self.dqn = DQN.DQNAgent(84, 84, 4, num_paths, env, sess=self.sess)
 		self.memory = deque(maxlen=2000)
-		print("on other other side")
-
 		self.processor = StateProcessor(self.sess)
-		print("other to the third")
-
 		self.sess.run(tf.global_variables_initializer())
-
-		print("other to the fourth")
 
 	def act(self, paths, MF_output):
 		paths = self.format_paths([paths])
@@ -151,13 +140,13 @@ class INet:
 		if restore_session:
 			self.restore_session()
 
-		env = gym.make('Breakout-v0')
 		e = 0
 		while True:
 			while True:
 				try:
 					state = env.reset()
 					state = self.processor.process(state)
+					state = np.stack([state] * 4, axis=2)
 				except RuntimeWarning:
 					print("RuntimeWarning caught: retrying")
 					continue
@@ -167,37 +156,32 @@ class INet:
 				else:
 					break
 			done = False
+			accumulated_score = 0
 			while not done:
+				# env.render()
 				curr_cloned_state = env.env.clone_full_state()
 				icore = ImaginationCore.ImaginationCore(self.dqn, curr_cloned_state, action_size, self.processor)
 				rollouts = icore.rollout()
-
 				curr_dqn_predict = self.dqn.reward_vec(state)
-				# print("curr_dqn_predict", curr_dqn_predict)
 				lstm_out = self.act(rollouts, curr_dqn_predict)
-		  
 				next_state, reward, done, _ = env.step(lstm_out) 
 				next_state = self.processor.process(next_state)
-
+				next_state = np.append(state[:,:,1:], np.expand_dims(next_state, 2), axis=2)
 				next_dqn_predict = self.dqn.reward_vec(next_state)
-
 				self.memory.append([curr_cloned_state, curr_dqn_predict, lstm_out, reward, env.env.clone_full_state(), next_dqn_predict, done])
 				self.dqn.remember(state, lstm_out, reward, next_state, done)
-
+				accumulated_score += reward
 				state = next_state
-
-			e += 1
-			num_mem = len(self.dqn.memory)
-			if num_mem > 32:
-				num_mem = 32
-			print("before dqn replay")
-			self.dqn.replay(num_mem)
-			print("before replay, after dqn replay")
-			self.replay(num_mem, action_size)
-			print("after replay")
+				e += 1
+				print("episode: ", e)
+				num_mem = len(self.dqn.memory)
+				if num_mem > 32 and (e%50 == 0):
+					num_mem = 32
+					self.dqn.replay(num_mem)
+					self.replay(num_mem, action_size)
 			self.epsilon *= self.e_decay
 
-			print("episode: {}, score: {}".format(e, reward))
+			print("episode: {}, score: {}".format(e, accumulated_score))
 			if e % 1000 == 0:
 				saver.save(self.sess, './FinalCheckpoints/'+'model')
 				print('Model {} saved'.format(e))

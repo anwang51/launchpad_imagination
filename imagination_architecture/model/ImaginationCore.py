@@ -19,15 +19,16 @@ class ImaginationCore:
 		return [next_state, reward]
 
 	def rollout_four(self, action):
-		#next_states = []
+		next_states = []
 		reward_sum = 0
-		for _ in range(4):
-			next_state, reward, done, _ = self.env.step(action) # make sure env outputs pixels, otherwise we're fucked
-			#next_states.append(processor.process(next_state))
+		for i in range(4):
+			pre_next_state, reward, done, _ = self.env.step(action) # make sure env outputs pixels, otherwise we're fucked
+			next_states.append(np.expand_dims(self.processor.process(pre_next_state), 2))
 			reward_sum += reward
+
 		# next_state = np.reshape(next_state, [self.input_width, self.input_height])
-		#next_state = np.concatenate(next_states, 2)
-		return (self.processor.process_2(next_state), reward_sum)
+		next_state = np.concatenate(next_states, 2)
+		return (next_state, self.processor.process_2(pre_next_state), reward_sum)
 
 	def rollout(self, depth=5):
 		result = []
@@ -35,12 +36,12 @@ class ImaginationCore:
 			self.env.env.restore_full_state(self.cloned_state)
 			temp_depth = depth - 1
 			rollout_result = []
-			next_state, reward = self.rollout_four(i)
+			dqn_next_state, next_state, reward = self.rollout_four(i)
 			rollout_result.append([next_state, reward])
 			while temp_depth > 0:
 				full_state = []
-				action = self.actor.act(next_state)
-				next_state, reward = self.rollout_four(action)
+				action = self.actor.act(dqn_next_state)
+				dqn_next_state, next_state, reward = self.rollout_four(action)
 				rollout_result.append([next_state, reward])
 				temp_depth -= 1
 			result.append(rollout_result)

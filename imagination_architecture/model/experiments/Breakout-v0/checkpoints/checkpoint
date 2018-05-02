@@ -1,0 +1,2 @@
+model_checkpoint_path: "/Users/wangan/Documents/launchpad_spring2018/launchpad_imagination/breakout/experiments/Breakout-v0/checkpoints/model"
+all_model_checkpoint_paths: "/Users/wangan/Documents/launchpad_spring2018/launchpad_imagination/breakout/experiments/Breakout-v0/checkpoints/model"

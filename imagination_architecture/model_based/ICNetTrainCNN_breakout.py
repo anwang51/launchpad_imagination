@@ -17,6 +17,7 @@ gamma = 0.9
 
 class ICNet:
     def __init__(self, sess, input_height, input_width, action_num):
+        #tf.reset_default_graph()
         self.sess = sess
         #with tf.device("/gpu:0"):
         self.x = tf.placeholder("float32", [None, input_height, input_width, 6])
@@ -72,7 +73,7 @@ class ICNet:
         q_val_hat = tf.reduce_sum(tf.multiply(self.y_hat, self.actions), 1) #The q-vals for the actions selected in game
         #loss = tf.reduce_sum(tf.square(self.q_val - q_val_hat))
         loss = tf.losses.mean_squared_error(self.q_val, q_val_hat)
-        self.train = tf.train.AdamOptimizer(0.001).minimize(loss)
+        self.train = tf.train.RMSOptimizer(0.0003).minimize(loss)
         self.saver = tf.train.Saver()
 
     def update(self, state, action, reward, next_state, done):
@@ -157,14 +158,21 @@ class DQNAgent:
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
-    def load(self, name):
-        self.model.saver.restore(self.model.sess, name)
+    def restore_session(self):
+        path = tf.train.get_checkpoint_state('./DQNcheckpoints/')
+        if path is None:
+            raise IOError('No checkpoint to restore in ' + './DQNcheckpoints/')
+        else:
+            self.model.saver.restore(self.model.sess, path.model_checkpoint_path)
+            
 
     def save(self, name):
         self.model.saver.save(self.model.sess, name)
 
     # Should be def train(self, agent_action)
     def train(self):
+        if restore_session:
+            self.restore_session()
         env = gym.make('Breakout-v0')
         #print("env stuff", env.observation_space, env.action_space)
         init = tf.global_variables_initializer()
@@ -228,6 +236,9 @@ class DQNAgent:
             out_str = str(performance_score) + " "
             f.write(out_str)
             f.flush()
+            if epis % 1000 == 0:
+                self.model.saver.save(self.model.sess, './DQNcheckpoints/'+'model')
+                print('Model {} saved'.format(epis))
             print("episode: {}/{}, score: {}"
                           .format(epis, float("inf"), performance_score))
             # train the agent with the experience of the episode
@@ -236,7 +247,7 @@ class DQNAgent:
                 num_mem = 32
             agent.replay(num_mem)
             epis += 1
-        agent.model.save_model("tfmodel_weights.h5")
+        
 
 #     0: wall = [0, 0, 0]
 #     1: floor = [243, 248, 238]

@@ -122,8 +122,7 @@ class DQNAgent:
             raise IOError('No checkpoint to restore in ' + './DQNcheckpoints/')
         else:
             self.model.saver.restore(self.model.sess, path.model_checkpoint_path)
-            #global_step = int(path.model_checkpoint_path.split('-')[-1])
-        print(self.model.sess.run(self.model.temp))
+            
 
     # Should be def train(self, agent_action)
     def train(self, restore_session = False):

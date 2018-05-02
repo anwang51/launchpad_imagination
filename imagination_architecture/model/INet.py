@@ -189,7 +189,7 @@ class INet:
 			if num_mem > 32:
 				num_mem = 32
 			self.dqn.replay(num_mem)
-			self.replay(num_mem)
+			self.replay(num_mem, action_size)
 			self.epsilon *= self.e_decay
 
 			print("episode: {}, score: {}".format(e, reward))
@@ -197,7 +197,7 @@ class INet:
 				saver.save(self.model.sess, './FinalCheckpoints/'+'model')
 				print('Model {} saved'.format(e))
 
-	def replay(self, batch_size):
+	def replay(self, batch_size, action_size):
 		minibatch = random.sample(self.memory, batch_size)
 		states = []
 		MF_outputs = []

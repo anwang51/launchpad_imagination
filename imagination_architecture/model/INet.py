@@ -55,11 +55,13 @@ class INet:
 		#tf.reset_default_graph()
 		#with tf.Graph.as_default():
 		#Batch_size, path_length, LSTM.input_size
+		self.epsilon = 1
+		self.e_decay = 0.9995
 		self._paths = tf.placeholder("float32", [None, num_paths, path_length, LSTM_input_size])
 		paths_list = tf.unstack(self._paths, None, 1)
 		#unstacked = [tf.unstack(path, None, 1) for path in paths_list]
 		with tf.variable_scope("encoder", reuse=None):
-			lstm_layer = rnn.core_rnn_cell.BasicLSTMCell(LSTM_input_size,forget_bias=1)
+			lstm_layer = rnn.BasicLSTMCell(LSTM_input_size,forget_bias=1)
 			outputs, states = tf.nn.dynamic_rnn(lstm_layer, paths_list[0], dtype="float32")
 			print("outputs.shape:", outputs.shape)
 		input_pieces = [outputs[:,-1,:]]
@@ -103,8 +105,13 @@ class INet:
 		print("other to the fourth")
 
 	def act(self, paths, MF_output):
+		print("inside of act")
 		paths = self.format_paths([paths])
 		reward_vec = self.sess.run(self.output, {self._paths: paths, self._MF_output: MF_output})
+		if random.random() < self.epsilon:
+			action = random.randint(0, len(reward_vec[0])-1)
+			print(action)
+			return action
 		return np.argmax(reward_vec)
 
 	def update(self, states, action, reward, next_states, done):
@@ -161,6 +168,7 @@ class INet:
 					break
 			done = False
 			while not done:
+				env.render()
 				curr_cloned_state = env.env.clone_full_state()
 				icore = ImaginationCore.ImaginationCore(self.dqn, curr_cloned_state, action_size, self.processor)
 				rollouts = icore.rollout()
@@ -185,6 +193,7 @@ class INet:
 				num_mem = 32
 			self.dqn.replay(num_mem)
 			self.replay(num_mem)
+			self.epsilon *= self.e_decay
 
 			print("episode: {}, score: {}".format(e, reward))
 			if e % 1000 == 0:

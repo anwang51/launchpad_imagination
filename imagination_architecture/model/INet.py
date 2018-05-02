@@ -28,7 +28,7 @@ class StateProcessor():
 			self.output_2 = tf.image.rgb_to_grayscale(self.input_state)
 			self.output_2 = tf.image.crop_to_bounding_box(self.output_2, 34, 0, 160, 160)
 			self.output_2 = tf.image.resize_images(
-				self.output_2, [30, 30], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+				self.output_2, [30, 30], method=tf.image.ResizeMethod.BILINEAR)
 			self.output_2 = tf.squeeze(self.output_2)
 	def process(self, state):
 		"""
@@ -165,7 +165,8 @@ class INet:
 				else:
 					break
 			done = False
-			while not done:
+			counter = 0
+			while not done and counter < 100:
 				curr_cloned_state = env.env.clone_full_state()
 				icore = ImaginationCore.ImaginationCore(self.dqn, curr_cloned_state, action_size, self.processor)
 				rollouts = icore.rollout()
@@ -179,17 +180,21 @@ class INet:
 
 				next_dqn_predict = self.dqn.reward_vec(next_state)
 
-				self.memory.append([curr_cloned_state, curr_dqn_predict, lstm_out, reward, env.env.clone_full_state(), done])
+				self.memory.append([curr_cloned_state, curr_dqn_predict, lstm_out, reward, next_dqn_predict, env.env.clone_full_state(), done])
 				self.dqn.remember(state, lstm_out, reward, next_state, done)
 
 				state = next_state
+				counter += 1
 
 			e += 1
 			num_mem = len(self.dqn.memory)
 			if num_mem > 32:
 				num_mem = 32
+			print("before dqn replay")
 			self.dqn.replay(num_mem)
+			print("before replay, after dqn replay")
 			self.replay(num_mem, action_size)
+			print("after replay")
 			self.epsilon *= self.e_decay
 
 			print("episode: {}, score: {}".format(e, reward))
@@ -207,8 +212,11 @@ class INet:
 		next_MF_outputs = []
 		dones = []
 		for tup in minibatch:
+			print("tup: ", tup)
 			cur_IC = ImaginationCore.ImaginationCore(self.dqn, tup[0], action_size, self.processor)
+			print("before rollout")
 			states.append(cur_IC.rollout())
+			print("after rollout")
 			MF_outputs.append(tup[1])
 			actions.append(tup[2])
 			rewards.append(tup[3])
@@ -216,12 +224,14 @@ class INet:
 			next_states.append(next_IC.rollout())
 			next_MF_outputs.append(tup[5])
 			dones.append(tup[6])
-		states = tup([states, np.array(MF_outputs)])
-		next_states = tup([next_states, np.array(next_MF_outputs)])
-		print("shape", states.shape)
+			print("some garbage: ", tup)
+		states = tuple([states, np.array(MF_outputs)])
+		next_states = tuple([next_states, np.array(next_MF_outputs)])
+		print("shape ", states.shape)
 		actions = np.eye(self.action_size)[actions]
 		rewards = np.array(rewards)
 		dones = np.array(dones)
+		print("model: ", self.model)
 		self.model.update(states, actions, rewards, next_states, dones)
 
 agent = INet(901, 4, 4, 4, 5)

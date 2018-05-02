@@ -105,12 +105,10 @@ class INet:
 		print("other to the fourth")
 
 	def act(self, paths, MF_output):
-		print("inside of act")
 		paths = self.format_paths([paths])
 		reward_vec = self.sess.run(self.output, {self._paths: paths, self._MF_output: MF_output})
 		if random.random() < self.epsilon:
 			action = random.randint(0, len(reward_vec[0])-1)
-			print(action)
 			return action
 		return np.argmax(reward_vec)
 
@@ -168,13 +166,12 @@ class INet:
 					break
 			done = False
 			while not done:
-				env.render()
 				curr_cloned_state = env.env.clone_full_state()
 				icore = ImaginationCore.ImaginationCore(self.dqn, curr_cloned_state, action_size, self.processor)
 				rollouts = icore.rollout()
 
 				curr_dqn_predict = self.dqn.reward_vec(state)
-				print("curr_dqn_predict", curr_dqn_predict)
+				# print("curr_dqn_predict", curr_dqn_predict)
 				lstm_out = self.act(rollouts, curr_dqn_predict)
 		  
 				next_state, reward, done, _ = env.step(lstm_out) 
